@@ -184,6 +184,7 @@
   - 增加 ExerciseService 单元测试覆盖组合 BodyPart 筛选解析
   - 修正本地 Mockito 测试配置，避免 JDK self-attach 限制导致测试不稳定
   - 完成桌面/移动端截图视觉 QA
+  - 关闭 GitHub Issue [#2](https://github.com/qiyee1688/fitness-app/issues/2)
 - **验证**：
   - `mvn test` 通过（8 tests）
   - `npm run build` 通过

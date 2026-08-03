@@ -266,6 +266,7 @@
 - `npm run build` 通过
 - Chrome headless 截图完成桌面列表、移动列表和详情页视觉 QA
 - API 验证：`GET /api/exercises?page=1&pageSize=1&bodyPart=upper legs,lower legs` 返回 `total=286`
+- GitHub Issue [#2](https://github.com/qiyee1688/fitness-app/issues/2) 已关闭
 
 ### 下一步行动
 
