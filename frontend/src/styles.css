@@ -88,6 +88,13 @@ h2 {
   width: min(420px, 100%);
 }
 
+.body-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 0;
+  margin-bottom: 18px;
+}
+
 .exercise-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -101,12 +108,44 @@ h2 {
   background: #ffffff;
 }
 
-.exercise-card img {
+.card-media {
+  position: relative;
+  overflow: hidden;
+  background: #eef2ec;
+}
+
+.exercise-card img,
+.card-media-empty {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
-  object-fit: cover;
   background: #eef2ec;
+}
+
+.exercise-card img {
+  object-fit: cover;
+}
+
+.card-media-empty {
+  display: grid;
+  place-items: center;
+  color: #66806d;
+  font-weight: 700;
+}
+
+.media-label {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  max-width: calc(100% - 24px);
+  border: 1px solid rgba(36, 53, 43, 0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #24352b;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .card-body {
@@ -145,10 +184,11 @@ h2 {
 }
 
 .media-panel {
+  position: relative;
   overflow: hidden;
   border: 1px solid #dfe5dc;
   border-radius: 8px;
-  background: #ffffff;
+  background: #eef2ec;
 }
 
 .media-panel img,
@@ -159,6 +199,7 @@ h2 {
 
 .media-panel img {
   display: block;
+  background: #eef2ec;
   object-fit: cover;
 }
 
@@ -172,6 +213,36 @@ h2 {
 
 .detail-content {
   min-width: 0;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.meta-grid div {
+  min-width: 0;
+  border: 1px solid #dfe5dc;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.meta-grid dt {
+  margin-bottom: 4px;
+  color: #66806d;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.meta-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #17211b;
+  font-weight: 650;
 }
 
 .steps {
@@ -192,6 +263,10 @@ h2 {
   }
 
   .detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .meta-grid {
     grid-template-columns: 1fr;
   }
 }

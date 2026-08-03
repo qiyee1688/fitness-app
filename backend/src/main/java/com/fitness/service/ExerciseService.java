@@ -5,6 +5,7 @@ import com.fitness.mapper.ExerciseMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -47,7 +48,14 @@ public class ExerciseService {
             int pageSize
     ) {
         int offset = (page - 1) * pageSize;
-        return exerciseMapper.findByConditions(category, bodyPart, equipment, muscleGroup, offset, pageSize);
+        return exerciseMapper.findByConditions(
+                category,
+                parseListFilter(bodyPart),
+                equipment,
+                muscleGroup,
+                offset,
+                pageSize
+        );
     }
 
     /**
@@ -75,6 +83,17 @@ public class ExerciseService {
      * 获取筛选后的总数
      */
     public int getCountByConditions(String category, String bodyPart, String equipment, String muscleGroup) {
-        return exerciseMapper.countByConditions(category, bodyPart, equipment, muscleGroup);
+        return exerciseMapper.countByConditions(category, parseListFilter(bodyPart), equipment, muscleGroup);
+    }
+
+    private List<String> parseListFilter(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .toList();
     }
 }

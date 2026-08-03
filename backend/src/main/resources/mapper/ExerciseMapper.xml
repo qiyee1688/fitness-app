@@ -42,8 +42,11 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-            <if test="bodyPart != null and bodyPart != ''">
-                AND body_part = #{bodyPart}
+            <if test="bodyParts != null and bodyParts.size() > 0">
+                AND body_part IN
+                <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
+                    #{bodyPart}
+                </foreach>
             </if>
             <if test="equipment != null and equipment != ''">
                 AND equipment = #{equipment}
@@ -89,8 +92,11 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-            <if test="bodyPart != null and bodyPart != ''">
-                AND body_part = #{bodyPart}
+            <if test="bodyParts != null and bodyParts.size() > 0">
+                AND body_part IN
+                <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
+                    #{bodyPart}
+                </foreach>
             </if>
             <if test="equipment != null and equipment != ''">
                 AND equipment = #{equipment}

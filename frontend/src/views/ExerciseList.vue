@@ -19,13 +19,38 @@
       </el-input>
     </div>
 
+    <el-radio-group
+      v-model="selected_body_part"
+      class="body-tabs"
+      @change="change_body_part"
+    >
+      <el-radio-button
+        v-for="filter in body_part_filters"
+        :key="filter.value"
+        :label="filter.value"
+      >
+        {{ filter.label }}
+      </el-radio-button>
+    </el-radio-group>
+
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <el-skeleton v-if="loading" :rows="8" animated />
 
+    <el-empty v-else-if="!exercises.length" description="暂无匹配的 Exercise" />
+
     <div v-else class="exercise-grid">
       <article v-for="exercise in exercises" :key="exercise.id" class="exercise-card">
-        <img v-if="exercise.imageUrl || exercise.gifUrl" :src="exercise.imageUrl || exercise.gifUrl" :alt="exercise.name" />
+        <div class="card-media">
+          <img
+            v-if="card_media_source(exercise)"
+            :src="card_media_source(exercise)"
+            :alt="exercise.name"
+            @error="mark_media_broken(exercise.id)"
+          />
+          <div v-else class="card-media-empty">{{ exercise.bodyPart || 'Exercise' }}</div>
+          <span class="media-label">{{ exercise.bodyPart || 'Exercise' }}</span>
+        </div>
         <div class="card-body">
           <h2>{{ exercise.name }}</h2>
           <div class="tags">
@@ -64,13 +89,28 @@ const keyword = ref('')
 const loading = ref(false)
 const page = ref(1)
 const page_size = 20
+const selected_body_part = ref('')
 const total = ref(0)
+const broken_media_ids = ref(new Set())
+
+const body_part_filters = [
+  { label: '全部', value: '' },
+  { label: '练胸', value: 'chest' },
+  { label: '练背', value: 'back' },
+  { label: '练肩', value: 'shoulders' },
+  { label: '练腿', value: 'upper legs,lower legs' },
+  { label: '练核心', value: 'waist' },
+]
 
 async function load_page() {
   loading.value = true
   error.value = ''
   try {
-    const data = await fetch_exercises({ page: page.value, pageSize: page_size })
+    const data = await fetch_exercises({
+      page: page.value,
+      pageSize: page_size,
+      bodyPart: selected_body_part.value,
+    })
     exercises.value = data.items
     total.value = data.total
   } catch (exception) {
@@ -86,6 +126,8 @@ async function load_search() {
     return
   }
 
+  selected_body_part.value = ''
+  page.value = 1
   loading.value = true
   error.value = ''
   try {
@@ -98,8 +140,28 @@ async function load_search() {
   }
 }
 
+async function change_body_part() {
+  keyword.value = ''
+  page.value = 1
+  await load_page()
+}
+
 function go_detail(id) {
   router.push({ name: 'exercise-detail', params: { id } })
+}
+
+function card_media_source(exercise) {
+  if (broken_media_ids.value.has(exercise.id)) {
+    return ''
+  }
+
+  return exercise.imageUrl || exercise.gifUrl || ''
+}
+
+function mark_media_broken(id) {
+  const next_ids = new Set(broken_media_ids.value)
+  next_ids.add(id)
+  broken_media_ids.value = next_ids
 }
 
 onMounted(load_page)

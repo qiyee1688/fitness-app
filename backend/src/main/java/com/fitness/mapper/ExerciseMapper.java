@@ -27,7 +27,7 @@ public interface ExerciseMapper {
      */
     List<Exercise> findByConditions(
         @Param("category") String category,
-        @Param("bodyPart") String bodyPart,
+        @Param("bodyParts") List<String> bodyParts,
         @Param("equipment") String equipment,
         @Param("muscleGroup") String muscleGroup,
         @Param("offset") int offset,
@@ -54,7 +54,7 @@ public interface ExerciseMapper {
      */
     int countByConditions(
         @Param("category") String category,
-        @Param("bodyPart") String bodyPart,
+        @Param("bodyParts") List<String> bodyParts,
         @Param("equipment") String equipment,
         @Param("muscleGroup") String muscleGroup
     );
