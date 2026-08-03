@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.ExerciseMapper">
+
+    <!-- Result Map -->
+    <resultMap id="ExerciseResultMap" type="com.fitness.domain.Exercise">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="category" column="category"/>
+        <result property="bodyPart" column="body_part"/>
+        <result property="equipment" column="equipment"/>
+        <result property="target" column="target"/>
+        <result property="muscleGroup" column="muscle_group"/>
+        <result property="secondaryMuscles" column="secondary_muscles"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="instructionSteps" column="instruction_steps"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="gifUrl" column="gif_url"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 查询单个 Exercise -->
+    <select id="findById" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises WHERE id = #{id}
+    </select>
+
+    <!-- 查询所有 Exercise（分页） -->
+    <select id="findAll" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 条件筛选 Exercise -->
+    <select id="findByConditions" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises
+        <where>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="bodyPart != null and bodyPart != ''">
+                AND body_part = #{bodyPart}
+            </if>
+            <if test="equipment != null and equipment != ''">
+                AND equipment = #{equipment}
+            </if>
+            <if test="muscleGroup != null and muscleGroup != ''">
+                AND muscle_group = #{muscleGroup}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 按名称搜索 Exercise -->
+    <select id="searchByName" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises
+        WHERE name ILIKE '%' || #{keyword} || '%'
+        ORDER BY name
+        LIMIT #{limit}
+    </select>
+
+    <!-- 插入 Exercise -->
+    <insert id="insert" parameterType="com.fitness.domain.Exercise">
+        INSERT INTO exercises (
+            id, name, category, body_part, equipment, target, muscle_group,
+            secondary_muscles, instruction_steps, gif_url, image_url
+        ) VALUES (
+            #{id}, #{name}, #{category}, #{bodyPart}, #{equipment}, #{target}, #{muscleGroup},
+            #{secondaryMuscles, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{instructionSteps, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{gifUrl}, #{imageUrl}
+        )
+    </insert>
+
+    <!-- 统计总数 -->
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM exercises
+    </select>
+
+    <!-- 条件筛选统计 -->
+    <select id="countByConditions" resultType="int">
+        SELECT COUNT(*) FROM exercises
+        <where>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="bodyPart != null and bodyPart != ''">
+                AND body_part = #{bodyPart}
+            </if>
+            <if test="equipment != null and equipment != ''">
+                AND equipment = #{equipment}
+            </if>
+            <if test="muscleGroup != null and muscleGroup != ''">
+                AND muscle_group = #{muscleGroup}
+            </if>
+        </where>
+    </select>
+
+</mapper>

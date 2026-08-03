@@ -1,0 +1,31 @@
+package com.fitness.exception;
+
+import org.springframework.http.HttpStatus;
+
+public enum ErrorCode {
+    INVALID_REQUEST(400, "Invalid request", HttpStatus.BAD_REQUEST),
+    EXERCISE_NOT_FOUND(40401, "Exercise not found", HttpStatus.NOT_FOUND),
+    INTERNAL_ERROR(500, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+
+    private final int code;
+    private final String message;
+    private final HttpStatus httpStatus;
+
+    ErrorCode(int code, String message, HttpStatus httpStatus) {
+        this.code = code;
+        this.message = message;
+        this.httpStatus = httpStatus;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public HttpStatus getHttpStatus() {
+        return httpStatus;
+    }
+}
