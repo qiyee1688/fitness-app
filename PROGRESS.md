@@ -224,3 +224,17 @@
   - `npm run build` 通过
   - 真实 API 验证通过：读取 demo 档案、更新为 `INTERMEDIATE / MUSCLE_GAIN / 4 days`、再次读取确认已持久化
 - **下一步**：进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+
+### 会话 11：2026-08-03
+- **任务**：补充后端和前端服务启动、重启等开发脚本
+- **完成**：
+  - 新增 `scripts/backend.sh`，支持 `start|stop|restart|status|logs|test|seed`
+  - 新增 `scripts/frontend.sh`，支持 `start|stop|restart|status|logs|build`
+  - 新增 `scripts/middleware.sh`，统一管理 PostgreSQL / Redis Docker Compose
+  - 新增 `scripts/dev.sh`，提供全栈 `start|stop|restart|status|logs|test|build`
+  - 根 README 增加脚本使用说明，修正中间件 README 的宿主机端口
+- **验证**：
+  - Shell 脚本语法检查通过
+  - `scripts/backend.sh test` 通过（15 tests）
+  - `scripts/frontend.sh build` 通过
+- **下一步**：继续进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)

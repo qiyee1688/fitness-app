@@ -361,6 +361,40 @@
 - [ ] 关闭 GitHub Issue #3
 - [ ] 开始 #4 Plan Generator MVP
 
+## 2026-08-03 会话 11：补充开发服务脚本
+
+### 创建的文件
+
+- **`scripts/backend.sh`** — 后端服务启动、停止、重启、状态、日志、测试和 Exercise seed 入口
+- **`scripts/frontend.sh`** — 前端服务启动、停止、重启、状态、日志和 build 入口
+- **`scripts/middleware.sh`** — PostgreSQL / Redis Docker Compose 启停和日志入口
+- **`scripts/dev.sh`** — 全栈开发入口，串联 middleware、backend、frontend
+
+### 修改的文件
+
+- **`.gitignore`** — 忽略 `.dev/` 运行时 pid/log 目录
+- **`README.md`** — 增加开发服务脚本使用说明
+- **`backend/README.md`** — 快速启动改为脚本入口
+- **`local-middleware/README.md`** — 使用 `docker compose` 并修正宿主机端口为 `15432` / `16379`
+- **`PROGRESS.md`** — 记录本次脚本补充
+- **`CHANGELOG.md`** — 记录本次开发
+
+### 关键决策
+
+- 脚本运行状态写入项目根目录 `.dev/`，避免污染源码目录。
+- 后端默认优先使用本机 Java 21.0.7 路径；如果开发者已设置 `JAVA_HOME`，尊重当前环境。
+- 脚本只停止自己记录的 pid，不主动杀掉端口上的陌生进程，避免误伤开发者其他任务。
+
+### 验证
+
+- `bash -n scripts/backend.sh scripts/frontend.sh scripts/middleware.sh scripts/dev.sh` 通过
+- `scripts/backend.sh test` 通过：15 tests
+- `scripts/frontend.sh build` 通过
+
+### 下一步行动
+
+- [ ] 开始 #4 Plan Generator MVP
+
 ---
 
 ## 修改记录模板（后续会话使用）

@@ -6,8 +6,7 @@ Spring Boot 3.5.16 + Java 21 + MyBatis + PostgreSQL
 
 ### 1. 启动 PostgreSQL
 ```bash
-cd ../local-middleware
-docker-compose up -d
+../scripts/middleware.sh start
 ```
 
 ### 2. 构建项目
@@ -18,10 +17,19 @@ mvn clean install
 
 ### 3. 运行应用
 ```bash
-mvn spring-boot:run
+../scripts/backend.sh start
 ```
 
 应用将在 `http://localhost:8080/api` 启动。
+
+### 常用开发命令
+
+```bash
+../scripts/backend.sh status
+../scripts/backend.sh restart
+../scripts/backend.sh logs
+../scripts/backend.sh test
+```
 
 ## 数据库初始化
 
@@ -32,7 +40,7 @@ mvn spring-boot:run
 首次导入时运行：
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.arguments=--fitness.seed.exercises.enabled=true
+../scripts/backend.sh seed
 ```
 
 导入器会在 `exercises` 已有数据时跳过，避免重复写入。
