@@ -31,6 +31,8 @@ mvn clean install
 ../scripts/backend.sh test
 ```
 
+后端脚本会优先使用项目固定的 Java 21.0.7 和 Maven 3.9.9 路径。若启动失败，`start` 会返回非 0，并直接打印 `.dev/backend.log` 的尾部。
+
 ## 数据库初始化
 
 数据库表结构会在容器启动时自动创建（通过 `schema.sql`）。

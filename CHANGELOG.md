@@ -395,6 +395,30 @@
 
 - [ ] 开始 #4 Plan Generator MVP
 
+## 2026-08-03 会话 12：修复后端启动脚本失败
+
+### 修改的文件
+
+- **`scripts/backend.sh`** — 强制后端使用 Java 21+，补 Maven 路径兜底，启动时等待成功信号，失败时打印日志尾部
+- **`scripts/frontend.sh`** — 后台启动改为 `nohup`，日志记录 Node / npm 版本
+- **`README.md`** — 补充后端脚本使用固定 Java / Maven 的说明
+- **`backend/README.md`** — 补充启动失败返回非 0 与日志尾部提示说明
+- **`PROGRESS.md`** — 记录本次修复
+- **`CHANGELOG.md`** — 记录本次修复
+
+### 根因
+
+- 后端脚本原先尊重已有 `JAVA_HOME`。如果开发者 shell 里 `JAVA_HOME` 指向 Java 8，Spring Boot Maven Plugin 3.5.16 会因 class file version 不兼容启动失败。
+
+### 验证
+
+- `bash -n scripts/backend.sh scripts/frontend.sh scripts/middleware.sh scripts/dev.sh` 通过
+- `JAVA_HOME=/usr PATH=/usr/bin:/bin:/usr/sbin:/sbin scripts/backend.sh test` 通过：15 tests
+
+### 下一步行动
+
+- [ ] 开始 #4 Plan Generator MVP
+
 ---
 
 ## 修改记录模板（后续会话使用）

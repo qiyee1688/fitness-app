@@ -46,10 +46,15 @@ start_frontend() {
   : > "$LOG_FILE"
   (
     cd "$FRONTEND_DIR"
-    exec npm run dev -- --port "$FRONTEND_PORT" --strictPort
-  ) >> "$LOG_FILE" 2>&1 &
-  pid=$!
-  echo "$pid" > "$PID_FILE"
+    {
+      echo "Using Node: $(node --version)"
+      echo "Using npm: $(npm --version)"
+      echo "Starting frontend on port $FRONTEND_PORT"
+    } >> "$LOG_FILE"
+    nohup npm run dev -- --port "$FRONTEND_PORT" --strictPort >> "$LOG_FILE" 2>&1 &
+    echo "$!" > "$PID_FILE"
+  )
+  pid="$(read_pid)"
   echo "Frontend starting: pid=$pid, url=http://localhost:$FRONTEND_PORT"
   echo "Log: $LOG_FILE"
 }

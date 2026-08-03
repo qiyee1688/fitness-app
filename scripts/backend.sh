@@ -7,6 +7,7 @@ RUNTIME_DIR="$ROOT_DIR/.dev"
 PID_FILE="$RUNTIME_DIR/backend.pid"
 LOG_FILE="$RUNTIME_DIR/backend.log"
 DEFAULT_JAVA_HOME="/Users/qiyee/baseEnv/jdk-21.0.7.jdk/Contents/Home"
+DEFAULT_MAVEN_HOME="/Users/qiyee/baseEnv/apache-maven-3.9.9"
 BACKEND_PORT="${BACKEND_PORT:-8080}"
 
 mkdir -p "$RUNTIME_DIR"
@@ -31,12 +32,37 @@ is_port_busy() {
 }
 
 configure_java() {
-  if [[ -z "${JAVA_HOME:-}" && -d "$DEFAULT_JAVA_HOME" ]]; then
+  if [[ -d "$DEFAULT_JAVA_HOME" ]]; then
     export JAVA_HOME="$DEFAULT_JAVA_HOME"
+  elif command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    export JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null || true)"
   fi
 
   if [[ -n "${JAVA_HOME:-}" ]]; then
     export PATH="$JAVA_HOME/bin:$PATH"
+  fi
+
+  if [[ -d "$DEFAULT_MAVEN_HOME" ]]; then
+    export PATH="$DEFAULT_MAVEN_HOME/bin:$PATH"
+  fi
+
+  if ! command -v java >/dev/null 2>&1; then
+    echo "Java is required but was not found. Install Java 21 or set JAVA_HOME to a Java 21+ JDK."
+    return 1
+  fi
+
+  local java_major
+  java_major="$(java -version 2>&1 | awk -F '[\".]' '/version/ {print $2; exit}')"
+  if [[ -z "$java_major" || "$java_major" -lt 21 ]]; then
+    echo "Java 21+ is required for the backend."
+    java -version
+    echo "Set JAVA_HOME to a Java 21+ JDK or install it at $DEFAULT_JAVA_HOME."
+    return 1
+  fi
+
+  if ! command -v mvn >/dev/null 2>&1; then
+    echo "Maven is required but was not found. Install Maven or add it to PATH."
+    return 1
   fi
 }
 
@@ -58,11 +84,34 @@ start_backend() {
   : > "$LOG_FILE"
   (
     cd "$BACKEND_DIR"
-    exec env SERVER_PORT="$BACKEND_PORT" mvn spring-boot:run
-  ) >> "$LOG_FILE" 2>&1 &
-  pid=$!
-  echo "$pid" > "$PID_FILE"
-  echo "Backend starting: pid=$pid, url=http://localhost:$BACKEND_PORT/api"
+    {
+      echo "Using Java: $(java -version 2>&1 | head -n 1)"
+      echo "Using Maven: $(mvn -version | head -n 1)"
+      echo "Starting backend on port $BACKEND_PORT"
+    } >> "$LOG_FILE"
+    nohup env SERVER_PORT="$BACKEND_PORT" mvn spring-boot:run -Dspring-boot.run.fork=false >> "$LOG_FILE" 2>&1 &
+    echo "$!" > "$PID_FILE"
+  )
+  pid="$(read_pid)"
+
+  for _ in {1..20}; do
+    if ! is_running "$pid"; then
+      rm -f "$PID_FILE"
+      echo "Backend failed to start. Log: $LOG_FILE"
+      tail -60 "$LOG_FILE"
+      return 1
+    fi
+
+    if grep -q "Started FitnessApplication" "$LOG_FILE"; then
+      echo "Backend started: pid=$pid, url=http://localhost:$BACKEND_PORT/api"
+      echo "Log: $LOG_FILE"
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  echo "Backend is still starting: pid=$pid, url=http://localhost:$BACKEND_PORT/api"
   echo "Log: $LOG_FILE"
 }
 

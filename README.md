@@ -36,3 +36,5 @@ scripts/frontend.sh start|stop|restart|status|logs|build
 运行日志和 PID 文件会写入 `.dev/`，该目录不会提交到 Git。
 
 如需临时换端口，可在命令前设置 `BACKEND_PORT` 或 `FRONTEND_PORT`，例如 `FRONTEND_PORT=5174 scripts/frontend.sh start`。
+
+后端脚本会优先使用项目固定的 Java 21.0.7 和 Maven 3.9.9 路径，并在 `.dev/backend.log` 开头打印实际使用的 Java / Maven 版本。

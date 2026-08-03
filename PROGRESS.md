@@ -238,3 +238,15 @@
   - `scripts/backend.sh test` 通过（15 tests）
   - `scripts/frontend.sh build` 通过
 - **下一步**：继续进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+
+### 会话 12：2026-08-03
+- **任务**：修复后端启动脚本失败
+- **完成**：
+  - 后端脚本不再直接信任开发者本机旧 `JAVA_HOME`，优先使用项目固定 Java 21.0.7
+  - 自动把项目 Maven 3.9.9 加入 `PATH`，降低 shell 环境差异影响
+  - 后端 `start` 会等待 Spring Boot 启动成功；若进程提前退出，直接打印日志尾部并返回非 0
+  - 前后端后台启动改为 `nohup`，日志中记录实际 Java / Maven / Node / npm 版本
+- **验证**：
+  - Shell 脚本语法检查通过
+  - 模拟坏环境 `JAVA_HOME=/usr PATH=/usr/bin:/bin:/usr/sbin:/sbin scripts/backend.sh test` 通过（15 tests）
+- **下一步**：继续进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
