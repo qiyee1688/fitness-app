@@ -6,6 +6,7 @@
       </router-link>
       <el-menu mode="horizontal" router :ellipsis="false" class="nav">
         <el-menu-item index="/">{{ t('navExercises') }}</el-menu-item>
+        <el-menu-item index="/profile">{{ t('navProfile') }}</el-menu-item>
       </el-menu>
       <el-radio-group v-model="language" class="language-switch" size="small">
         <el-radio-button label="zh">中文</el-radio-button>

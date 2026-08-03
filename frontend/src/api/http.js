@@ -18,3 +18,20 @@ export async function api_get(path, params = {}) {
 
   return payload.data
 }
+
+export async function api_post(path, body = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok || payload?.code !== 0) {
+    throw new Error(payload?.message || 'Request failed')
+  }
+
+  return payload.data
+}

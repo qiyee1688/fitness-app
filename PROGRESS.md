@@ -9,14 +9,14 @@
 - **领域建模**：✅ 完成（40 条决策已落 CONTEXT.md）
 - **项目初始化**：✅ 完成
 - **切片 1**：✅ 完成（Exercise 数据导入 + API + 前端视觉 QA）
-- **切片 2**：⏳ 待开始
+- **切片 2**：✅ 完成（UserProfile API + 前端表单 + 中英文展示）
 - **切片 3**：⏳ 待开始
 - **切片 4**：⏳ 待开始
 - **PRD / Issues**：✅ PRD 已发布，implementation issues 已拆分
 
 ---
 
-## 🎯 当前冲刺：项目初始化
+## 🎯 当前冲刺：MVP 主路径
 
 ### 已完成 ✅
 - [x] 领域建模（CONTEXT.md）— 40 条决策
@@ -37,6 +37,7 @@
 - [x] 导入 1,324 条 Exercise 数据到本地 PostgreSQL
 - [x] 联调 `GET /api/exercises/{id}` 与前端 Vite 代理
 - [x] 为 Exercise API 补 Controller 测试
+- [x] 完成 UserProfile 端到端：后端持久化、统一响应 API、前端表单、语言切换
 
 ### 待办 ⏳
 - [x] 前端详情页做视觉走查与交互微调
@@ -44,6 +45,8 @@
 - [x] 发布 MVP PRD 到 GitHub Issues：[#1 PRD: Fitness Coaching App MVP](https://github.com/qiyee1688/fitness-app/issues/1)
 - [x] 运行 `/to-issues` 拆分 PRD
 - [x] 整理 App 开发计划与简单功能说明：[`docs/app-development-plan.md`](docs/app-development-plan.md)
+- [x] 完成 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)
+- [ ] 进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
 
 ### GitHub Issues ✅
 - [x] [#1 PRD: Fitness Coaching App MVP](https://github.com/qiyee1688/fitness-app/issues/1)
@@ -206,3 +209,18 @@
   - `npm run build` 通过
   - Chrome headless 截图检查：中文桌面列表、中文移动列表、英文桌面列表、英文详情页
 - **下一步**：继续进入 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)
+
+### 会话 10：2026-08-03
+- **任务**：实现 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)
+- **完成**：
+  - 新增 User / UserProfile 领域对象、FitnessLevel / Goal 枚举、UserProfile DTO
+  - 新增 `GET /api/users/profile` 与 `POST /api/users/profile`，返回统一 `{code, message, data}`
+  - 业务逻辑下沉到 `UserService`，Controller 只做参数校验与响应包装
+  - MyBatis XML 使用参数化 SQL，并对 PostgreSQL UUID / enum / JSONB 做显式 cast
+  - 前端新增用户档案页，支持训练水平、训练目标、每周训练天数、可用器械、加载/错误/保存状态
+  - 用户档案页面接入中文 / English 语言切换，中文展示已去除混用英文标签
+- **验证**：
+  - `mvn test` 通过（15 tests）
+  - `npm run build` 通过
+  - 真实 API 验证通过：读取 demo 档案、更新为 `INTERMEDIATE / MUSCLE_GAIN / 4 days`、再次读取确认已持久化
+- **下一步**：进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)

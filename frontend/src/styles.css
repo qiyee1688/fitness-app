@@ -64,6 +64,13 @@ a {
   margin-bottom: 24px;
 }
 
+.page-subtitle {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: #66806d;
+  line-height: 1.6;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: #66806d;
@@ -179,6 +186,27 @@ h2 {
 .detail-page {
   display: grid;
   gap: 18px;
+}
+
+.profile-page {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-form {
+  display: grid;
+  gap: 6px;
+  max-width: 760px;
+  border: 1px solid #dfe5dc;
+  border-radius: 8px;
+  padding: 22px;
+  background: #ffffff;
+}
+
+.equipment-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .detail-layout {

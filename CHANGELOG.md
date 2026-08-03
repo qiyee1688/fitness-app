@@ -309,6 +309,58 @@
 
 - [ ] 开始 #3 UserProfile End-to-End
 
+## 2026-08-03 会话 10：完成 UserProfile 端到端
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/domain/User.java`** — User 领域对象
+- **`backend/src/main/java/com/fitness/domain/UserProfile.java`** — UserProfile 领域对象
+- **`backend/src/main/java/com/fitness/domain/FitnessLevel.java`** — FitnessLevel 枚举
+- **`backend/src/main/java/com/fitness/domain/Goal.java`** — Goal 枚举
+- **`backend/src/main/java/com/fitness/dto/UserProfileRequest.java`** — UserProfile 请求 DTO 与校验约束
+- **`backend/src/main/java/com/fitness/dto/UserProfileResponse.java`** — UserProfile 响应 DTO
+- **`backend/src/main/java/com/fitness/mapper/UserMapper.java`** — User / UserProfile MyBatis Mapper 接口
+- **`backend/src/main/java/com/fitness/service/UserService.java`** — UserProfile 创建、更新、读取业务逻辑
+- **`backend/src/main/java/com/fitness/controller/UserController.java`** — UserProfile REST API
+- **`backend/src/main/resources/mapper/UserMapper.xml`** — 参数化 SQL、UUID / enum / JSONB 映射
+- **`backend/src/test/java/com/fitness/service/UserServiceTest.java`** — UserService 创建、更新、错误路径测试
+- **`backend/src/test/java/com/fitness/controller/UserControllerTest.java`** — UserProfile Controller 统一响应与校验测试
+- **`frontend/src/api/user.js`** — UserProfile 前端 API client
+- **`frontend/src/views/UserProfile.vue`** — UserProfile 表单页
+
+### 修改的文件
+
+- **`backend/src/main/java/com/fitness/exception/ErrorCode.java`** — 增加 User / UserProfile 404 错误码
+- **`frontend/src/api/http.js`** — 增加统一 `api_post`
+- **`frontend/src/router/index.js`** — 增加 `/profile` 路由
+- **`frontend/src/App.vue`** — 顶栏增加用户档案导航
+- **`frontend/src/composables/useLanguage.js`** — 增加 UserProfile 中英文文案，并补齐中文页面纯中文展示
+- **`frontend/src/styles.css`** — 增加 UserProfile 表单布局与设备选项样式
+- **`docs/app-development-plan.md`** — 标记 #3 完成，并把下一优先级更新为 #4
+- **`PROGRESS.md`** — 记录 #3 完成、验证结果和下一步
+- **`CHANGELOG.md`** — 记录本次开发
+
+### 关键决策
+
+- 当前还没有完整登录系统，MVP 切片先使用本地 demo 用户：`demo / demo@fitness.local`。
+- `POST /api/users/profile` 采用 upsert 风格：demo User 不存在时创建，UserProfile 不存在时插入，存在时更新。
+- MyBatis 映射层保留参数化 SQL；PostgreSQL UUID、enum 和 JSONB 通过 XML 中显式 cast 处理。
+- Java 领域对象 ID 暂用 `String`，避免 MyBatis UUID TypeHandler 在本地集成中产生额外复杂度。
+
+### 验证
+
+- `mvn test` 通过：15 tests
+- `npm run build` 通过
+- 真实 API 验证：
+  - `GET /api/users/profile?username=demo` 返回统一成功响应
+  - `POST /api/users/profile` 成功更新为 `INTERMEDIATE / MUSCLE_GAIN / daysPerWeek=4`
+  - 再次 GET 确认 JSONB `availableEquipment=["body weight","dumbbell","barbell"]` 已持久化
+
+### 下一步行动
+
+- [ ] 关闭 GitHub Issue #3
+- [ ] 开始 #4 Plan Generator MVP
+
 ---
 
 ## 修改记录模板（后续会话使用）

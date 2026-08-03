@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     INVALID_REQUEST(400, "Invalid request", HttpStatus.BAD_REQUEST),
     EXERCISE_NOT_FOUND(40401, "Exercise not found", HttpStatus.NOT_FOUND),
+    USER_NOT_FOUND(40402, "User not found", HttpStatus.NOT_FOUND),
+    USER_PROFILE_NOT_FOUND(40403, "User profile not found", HttpStatus.NOT_FOUND),
     INTERNAL_ERROR(500, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

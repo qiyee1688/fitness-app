@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import ExerciseDetail from '@/views/ExerciseDetail.vue'
 import ExerciseList from '@/views/ExerciseList.vue'
+import UserProfile from '@/views/UserProfile.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,11 @@ const router = createRouter({
       name: 'exercise-detail',
       component: ExerciseDetail,
       props: true,
+    },
+    {
+      path: '/profile',
+      name: 'user-profile',
+      component: UserProfile,
     },
   ],
 })

@@ -40,13 +40,15 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - Exercise 数据已导入本地 PostgreSQL，共 1,324 条。
 - Exercise API 与前端列表/详情骨架已完成。
 - Exercise Controller 测试已补充。
+- UserProfile API、持久化和前端档案表单已完成。
+- 页面支持中文 / English 语言切换，中文页面名称、内容和标签已中文化。
 - MVP PRD 已发布为 [#1](https://github.com/qiyee1688/fitness-app/issues/1)。
 - Implementation issues 已拆分为 [#2](https://github.com/qiyee1688/fitness-app/issues/2) 到 [#8](https://github.com/qiyee1688/fitness-app/issues/8)。
 
 当前优先级：
 
-1. 先完成 [#2 Exercise 详情页视觉 QA](https://github.com/qiyee1688/fitness-app/issues/2)，把切片 1 正式关账。
-2. 再进入 [#3 UserProfile 端到端](https://github.com/qiyee1688/fitness-app/issues/3)，开始真正的 MVP 主路径。
+1. 进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)，根据 UserProfile 生成默认 8 周 Plan。
+2. Plan Generator 完成后进入 [#5 Plan View](https://github.com/qiyee1688/fitness-app/issues/5)，把生成结果展示给用户。
 
 ## 4. 开发阶段计划
 
@@ -91,6 +93,8 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 
 对应 issue：[#3](https://github.com/qiyee1688/fitness-app/issues/3)
 
+状态：已完成。
+
 目标：用户可以填写训练档案，作为生成 Plan 的输入。
 
 核心功能：
@@ -106,6 +110,7 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - 业务逻辑在 Service 层。
 - Mapper SQL 参数化，不拼接 SQL。
 - `mvn test` 和 `npm run build` 通过。
+- 真实 API 验证可创建、更新并读取 UserProfile，`AvailableEquipment` 通过 PostgreSQL JSONB 持久化。
 
 ### 阶段 3：Plan Generator MVP
 
