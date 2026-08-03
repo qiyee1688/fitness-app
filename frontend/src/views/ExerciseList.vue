@@ -2,14 +2,14 @@
   <section class="page">
     <div class="page-header">
       <div>
-        <p class="eyebrow">Exercise</p>
-        <h1>动作库</h1>
+        <p class="eyebrow">{{ t('exerciseEyebrow') }}</p>
+        <h1>{{ t('exerciseTitle') }}</h1>
       </div>
       <el-input
         v-model="keyword"
         class="search"
         clearable
-        placeholder="搜索名称"
+        :placeholder="t('searchPlaceholder')"
         @keyup.enter="load_search"
         @clear="load_page"
       >
@@ -29,7 +29,7 @@
         :key="filter.value"
         :label="filter.value"
       >
-        {{ filter.label }}
+        {{ t(filter.label_key) }}
       </el-radio-button>
     </el-radio-group>
 
@@ -37,7 +37,7 @@
 
     <el-skeleton v-if="loading" :rows="8" animated />
 
-    <el-empty v-else-if="!exercises.length" description="暂无匹配的 Exercise" />
+    <el-empty v-else-if="!exercises.length" :description="t('emptyExercises')" />
 
     <div v-else class="exercise-grid">
       <article v-for="exercise in exercises" :key="exercise.id" class="exercise-card">
@@ -45,20 +45,20 @@
           <img
             v-if="card_media_source(exercise)"
             :src="card_media_source(exercise)"
-            :alt="exercise.name"
+            :alt="display_exercise_name(exercise.name, language)"
             @error="mark_media_broken(exercise.id)"
           />
-          <div v-else class="card-media-empty">{{ exercise.bodyPart || 'Exercise' }}</div>
-          <span class="media-label">{{ exercise.bodyPart || 'Exercise' }}</span>
+          <div v-else class="card-media-empty">{{ display_value(exercise.bodyPart, language) || t('exerciseFallback') }}</div>
+          <span class="media-label">{{ display_value(exercise.bodyPart, language) || t('exerciseFallback') }}</span>
         </div>
         <div class="card-body">
-          <h2>{{ exercise.name }}</h2>
+          <h2>{{ display_exercise_name(exercise.name, language) }}</h2>
           <div class="tags">
-            <el-tag size="small">{{ exercise.bodyPart }}</el-tag>
-            <el-tag size="small" type="success">{{ exercise.target }}</el-tag>
-            <el-tag size="small" type="info">{{ exercise.equipment }}</el-tag>
+            <el-tag size="small">{{ display_value(exercise.bodyPart, language) }}</el-tag>
+            <el-tag size="small" type="success">{{ display_value(exercise.target, language) }}</el-tag>
+            <el-tag size="small" type="info">{{ display_value(exercise.equipment, language) }}</el-tag>
           </div>
-          <el-button :icon="ArrowRight" text @click="go_detail(exercise.id)">查看</el-button>
+          <el-button :icon="ArrowRight" text @click="go_detail(exercise.id)">{{ t('view') }}</el-button>
         </div>
       </article>
     </div>
@@ -81,8 +81,11 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { fetch_exercises, search_exercises } from '@/api/exercise'
+import { useLanguage } from '@/composables/useLanguage'
+import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 
 const router = useRouter()
+const { language, t } = useLanguage()
 const exercises = ref([])
 const error = ref('')
 const keyword = ref('')
@@ -94,12 +97,12 @@ const total = ref(0)
 const broken_media_ids = ref(new Set())
 
 const body_part_filters = [
-  { label: '全部', value: '' },
-  { label: '练胸', value: 'chest' },
-  { label: '练背', value: 'back' },
-  { label: '练肩', value: 'shoulders' },
-  { label: '练腿', value: 'upper legs,lower legs' },
-  { label: '练核心', value: 'waist' },
+  { label_key: 'all', value: '' },
+  { label_key: 'chest', value: 'chest' },
+  { label_key: 'backTraining', value: 'back' },
+  { label_key: 'shouldersTraining', value: 'shoulders' },
+  { label_key: 'legsTraining', value: 'upper legs,lower legs' },
+  { label_key: 'coreTraining', value: 'waist' },
 ]
 
 async function load_page() {

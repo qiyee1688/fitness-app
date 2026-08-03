@@ -1,6 +1,6 @@
 <template>
   <section class="page detail-page">
-    <el-button :icon="ArrowLeft" text @click="router.back()">返回</el-button>
+    <el-button :icon="ArrowLeft" text @click="router.back()">{{ t('back') }}</el-button>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-skeleton v-else-if="loading" :rows="10" animated />
@@ -10,56 +10,56 @@
         <img
           v-if="media_source"
           :src="media_source"
-          :alt="exercise.name"
+          :alt="display_exercise_name(exercise.name, language)"
           @error="media_broken = true"
         />
-        <div v-else class="media-empty">{{ exercise.bodyPart }}</div>
-        <span class="media-label">{{ exercise.bodyPart || 'Exercise' }}</span>
+        <div v-else class="media-empty">{{ display_value(exercise.bodyPart, language) }}</div>
+        <span class="media-label">{{ display_value(exercise.bodyPart, language) || t('exerciseFallback') }}</span>
       </div>
 
       <div class="detail-content">
-        <p class="eyebrow">{{ exercise.bodyPart }} / {{ exercise.target }}</p>
-        <h1>{{ exercise.name }}</h1>
+        <p class="eyebrow">{{ display_value(exercise.bodyPart, language) }} / {{ display_value(exercise.target, language) }}</p>
+        <h1>{{ display_exercise_name(exercise.name, language) }}</h1>
         <div class="tags">
-          <el-tag>{{ exercise.bodyPart }}</el-tag>
-          <el-tag type="success">{{ exercise.target }}</el-tag>
-          <el-tag type="info">{{ exercise.equipment }}</el-tag>
+          <el-tag>{{ display_value(exercise.bodyPart, language) }}</el-tag>
+          <el-tag type="success">{{ display_value(exercise.target, language) }}</el-tag>
+          <el-tag type="info">{{ display_value(exercise.equipment, language) }}</el-tag>
         </div>
 
         <dl class="meta-grid">
           <div>
-            <dt>Category</dt>
-            <dd>{{ exercise.category || '-' }}</dd>
+            <dt>{{ t('category') }}</dt>
+            <dd>{{ display_value(exercise.category, language) }}</dd>
           </div>
           <div>
-            <dt>BodyPart</dt>
-            <dd>{{ exercise.bodyPart || '-' }}</dd>
+            <dt>{{ t('bodyPart') }}</dt>
+            <dd>{{ display_value(exercise.bodyPart, language) }}</dd>
           </div>
           <div>
-            <dt>Target</dt>
-            <dd>{{ exercise.target || '-' }}</dd>
+            <dt>{{ t('target') }}</dt>
+            <dd>{{ display_value(exercise.target, language) }}</dd>
           </div>
           <div>
-            <dt>Equipment</dt>
-            <dd>{{ exercise.equipment || '-' }}</dd>
+            <dt>{{ t('equipment') }}</dt>
+            <dd>{{ display_value(exercise.equipment, language) }}</dd>
           </div>
           <div>
-            <dt>Muscle Group</dt>
-            <dd>{{ exercise.muscleGroup || '-' }}</dd>
+            <dt>{{ t('muscleGroup') }}</dt>
+            <dd>{{ display_value(exercise.muscleGroup, language) }}</dd>
           </div>
           <div>
-            <dt>Secondary</dt>
+            <dt>{{ t('secondary') }}</dt>
             <dd>{{ secondary_muscles }}</dd>
           </div>
         </dl>
 
         <el-divider />
 
-        <h2>步骤</h2>
+        <h2>{{ t('steps') }}</h2>
         <ol v-if="steps.length" class="steps">
           <li v-for="step in steps" :key="step">{{ step }}</li>
         </ol>
-        <el-empty v-else description="暂无步骤说明" />
+        <el-empty v-else :description="t('emptySteps')" />
       </div>
     </div>
   </section>
@@ -71,6 +71,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { fetch_exercise } from '@/api/exercise'
+import { useLanguage } from '@/composables/useLanguage'
+import { display_exercise_name, display_list, display_value } from '@/utils/exerciseDisplay'
 
 const props = defineProps({
   id: {
@@ -80,6 +82,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const { language, t } = useLanguage()
 const exercise = ref(null)
 const error = ref('')
 const loading = ref(false)
@@ -95,7 +98,7 @@ const media_source = computed(() => {
 
 const secondary_muscles = computed(() => {
   const muscles = exercise.value?.secondaryMuscles || []
-  return muscles.length ? muscles.join(' / ') : '-'
+  return display_list(muscles, language.value)
 })
 
 const steps = computed(() => {
@@ -103,7 +106,11 @@ const steps = computed(() => {
   if (!instruction_steps) {
     return []
   }
-  return instruction_steps.zh || instruction_steps.en || Object.values(instruction_steps)[0] || []
+  if (language.value === 'zh') {
+    return instruction_steps.zh || instruction_steps.en || Object.values(instruction_steps)[0] || []
+  }
+
+  return instruction_steps.en || instruction_steps.zh || Object.values(instruction_steps)[0] || []
 })
 
 async function load_detail() {

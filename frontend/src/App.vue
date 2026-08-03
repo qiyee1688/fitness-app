@@ -2,11 +2,15 @@
   <el-container class="app-shell">
     <el-header class="topbar">
       <router-link class="brand" to="/">
-        Fitness App
+        {{ t('appName') }}
       </router-link>
       <el-menu mode="horizontal" router :ellipsis="false" class="nav">
-        <el-menu-item index="/">Exercises</el-menu-item>
+        <el-menu-item index="/">{{ t('navExercises') }}</el-menu-item>
       </el-menu>
+      <el-radio-group v-model="language" class="language-switch" size="small">
+        <el-radio-button label="zh">中文</el-radio-button>
+        <el-radio-button label="en">English</el-radio-button>
+      </el-radio-group>
     </el-header>
 
     <el-main class="main">
@@ -14,3 +18,9 @@
     </el-main>
   </el-container>
 </template>
+
+<script setup>
+import { useLanguage } from '@/composables/useLanguage'
+
+const { language, t } = useLanguage()
+</script>

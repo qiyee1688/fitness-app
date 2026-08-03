@@ -190,3 +190,19 @@
   - `npm run build` 通过
   - API 验证：`bodyPart=upper legs,lower legs` 返回 286 条
 - **下一步**：进入 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)
+
+### 会话 9：2026-08-03
+- **任务**：Exercise 页面中英文展示与语言切换
+- **完成**：
+  - 增加全局语言状态，支持中文 / English 切换，并持久化到 `localStorage`
+  - 支持 `?lang=zh` / `?lang=en` 初始化语言，方便回归测试
+  - 顶栏、导航、搜索、空状态、按钮、详情字段名支持中英文
+  - Exercise 列表和详情页的 BodyPart、Target、Equipment、Muscle Group、Secondary 标签支持中文展示
+  - Exercise 详情步骤按语言切换：中文优先 `instructionSteps.zh`，英文优先 `instructionSteps.en`
+  - 常见 Exercise 名称增加中文展示规则，原始数据保持不变
+  - 移动端顶栏调整为多行布局，避免语言切换控件被裁切
+- **验证**：
+  - `mvn test` 通过（8 tests）
+  - `npm run build` 通过
+  - Chrome headless 截图检查：中文桌面列表、中文移动列表、英文桌面列表、英文详情页
+- **下一步**：继续进入 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)

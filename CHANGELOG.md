@@ -272,6 +272,43 @@
 
 - [ ] 开始 #3 UserProfile End-to-End
 
+## 2026-08-03 会话 9：Exercise 页面中英文展示与语言切换
+
+### 创建的文件
+
+- **`frontend/src/composables/useLanguage.js`** — 全局语言状态、持久化和页面文案
+- **`frontend/src/utils/exerciseDisplay.js`** — Exercise 名称、标签和列表字段的展示翻译工具
+
+### 修改的文件
+
+- **`frontend/src/App.vue`** — 顶栏增加中文 / English 切换
+- **`frontend/src/views/ExerciseList.vue`** — 列表标题、搜索、空状态、按钮、名称和标签接入语言展示
+- **`frontend/src/views/ExerciseDetail.vue`** — 详情标题、字段名、标签、步骤内容接入语言展示
+- **`frontend/src/styles.css`** — 增加语言切换样式，并调整移动端顶栏避免裁切
+- **`PROGRESS.md`** — 记录本次中英文展示增强
+- **`CHANGELOG.md`** — 记录本次开发
+
+### 关键决策
+
+- 不修改 Exercise 原始数据；中文展示在前端视图层完成。
+- `instructionSteps` 按当前语言选择：中文用 `zh` 优先，英文用 `en` 优先。
+- Exercise 名称没有完整中文字段，因此先用常见精确名称 + 词组/词级规则做中文展示，后续可替换为后端正式多语言字段。
+- 支持 `?lang=zh` / `?lang=en` 初始化语言，方便截图和回归验证。
+
+### 验证
+
+- `mvn test` 通过：8 tests
+- `npm run build` 通过
+- Chrome headless 截图检查：
+  - 中文桌面列表
+  - 中文移动列表
+  - 英文桌面列表
+  - 英文详情页
+
+### 下一步行动
+
+- [ ] 开始 #3 UserProfile End-to-End
+
 ---
 
 ## 修改记录模板（后续会话使用）
