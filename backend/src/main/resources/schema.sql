@@ -78,6 +78,7 @@ CREATE TABLE plans (
     end_date DATE NOT NULL,
     parent_plan_id UUID REFERENCES plans(id) ON DELETE SET NULL,
     version INT NOT NULL DEFAULT 0,
+    status_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plan_user FOREIGN KEY (user_id) REFERENCES users(id),

@@ -13,6 +13,7 @@
 - **切片 3**：✅ 完成（Plan Generator + Plan View）
 - **切片 4**：✅ 完成（Today Workout 查询 + 幂等打卡 + 前端视觉 QA）
 - **切片 5**：✅ 完成（ExerciseFeedback + HURT 即时替换 + 4 周安全过滤）
+- **切片 6**：✅ 完成（Plan 7 态生命周期 + 排队激活 + 自动续期）
 - **PRD / Issues**：✅ PRD 已发布，implementation issues 已拆分
 
 ---
@@ -57,6 +58,8 @@
 - [x] 完成 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
 - [x] 实现四类 Exercise 反馈、HURT 身体部位记录、即时安全替换/移除和未来 4 周过滤状态
 - [ ] 进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
+- [x] 完成 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
+- [x] 实现未来 SCHEDULED、ACTIVE → PAUSED、PAUSED → CANCELLED、到期 COMPLETED + child Plan 自动续期
 
 ### GitHub Issues ✅
 - [x] [#1 PRD: Fitness Coaching App MVP](https://github.com/qiyee1688/fitness-app/issues/1)
@@ -321,3 +324,17 @@
   - 真实 HURT 反馈保存为 `HURT_WAIST`，`filter_until=2026-09-02`，并将 Exercise `3293` 替换为 `0690`
   - 浏览器验证中英文反馈选项、HURT 身体部位输入和页面提交成功提示
 - **下一步**：进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
+
+### 会话 17：2026-08-05
+- **任务**：完成 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
+- **完成**：
+  - 未来开始日期生成 SCHEDULED Plan，不替换当前 ACTIVE Plan
+  - 无 ACTIVE 时按 startDate 激活最早到期的 SCHEDULED Plan
+  - ACTIVE 连续 2 周无打卡转 PAUSED，PAUSED 再 2 周未恢复转 CANCELLED
+  - 8 周到期将父 Plan 标 COMPLETED，并自动创建带 parentPlanId 的 ACTIVE child Plan
+  - 新增 status_changed_at 审计字段，所有状态迁移使用 expectedStatus + version 乐观锁
+  - 新增统一生命周期处理 API：`POST /api/plans/lifecycle/process`
+- **验证**：
+  - Service 测试覆盖 SCHEDULED、PAUSED、CANCELLED、COMPLETED、child renewal 和乐观锁冲突
+  - 本地 PostgreSQL 迁移成功，真实 API 幂等调用保持现有 ACTIVE Plan 不变
+- **下一步**：一期 MVP implementation issues #2-#8 已全部完成，等待堆叠 PR 依次合并

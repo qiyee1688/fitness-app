@@ -14,6 +14,7 @@
         <result property="endDate" column="end_date"/>
         <result property="parentPlanId" column="parent_plan_id"/>
         <result property="version" column="version"/>
+        <result property="statusChangedAt" column="status_changed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -55,6 +56,29 @@
         SELECT * FROM plans
         WHERE user_id = #{userId}::uuid AND status = 'ACTIVE'::plan_status_enum
         LIMIT 1
+    </select>
+
+    <select id="findPausedByUserId" resultMap="PlanResultMap">
+        SELECT * FROM plans
+        WHERE user_id = #{userId}::uuid
+          AND status = 'PAUSED'::plan_status_enum
+        ORDER BY status_changed_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="findNextScheduledByUserId" resultMap="PlanResultMap">
+        SELECT * FROM plans
+        WHERE user_id = #{userId}::uuid
+          AND status = 'SCHEDULED'::plan_status_enum
+          AND start_date &lt;= #{date}
+        ORDER BY start_date, created_at
+        LIMIT 1
+    </select>
+
+    <select id="findLatestCompletedAt" resultType="java.time.LocalDateTime">
+        SELECT MAX(w.completed_at)
+        FROM workouts w
+        WHERE w.plan_id = #{planId}::uuid
     </select>
 
     <select id="findWorkoutsByPlanId" resultMap="WorkoutResultMap">
@@ -188,16 +212,29 @@
     <update id="supersedeActive">
         UPDATE plans
         SET status = 'SUPERSEDED'::plan_status_enum,
+            status_changed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP,
             version = version + 1
         WHERE id = #{id}::uuid
           AND status = 'ACTIVE'::plan_status_enum
           AND version = #{version}
     </update>
 
+    <update id="transitionStatus">
+        UPDATE plans
+        SET status = #{newStatus}::plan_status_enum,
+            status_changed_at = #{changedAt},
+            updated_at = #{changedAt},
+            version = version + 1
+        WHERE id = #{id}::uuid
+          AND status = #{expectedStatus}::plan_status_enum
+          AND version = #{version}
+    </update>
+
     <insert id="insertPlan" parameterType="com.fitness.domain.Plan">
         INSERT INTO plans (
             id, user_id, profile_snapshot, status, start_date, end_date,
-            parent_plan_id, version
+            parent_plan_id, version, status_changed_at
         ) VALUES (
             #{id}::uuid,
             #{userId}::uuid,
@@ -206,7 +243,8 @@
             #{startDate},
             #{endDate},
             #{parentPlanId}::uuid,
-            #{version}
+            #{version},
+            #{statusChangedAt}
         )
     </insert>
 

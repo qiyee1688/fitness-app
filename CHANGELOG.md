@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-08-05 会话 17：Plan Lifecycle Automation
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/dto/PlanLifecycleResponse.java`** — 状态迁移统一响应
+- **`backend/src/main/resources/migration/20260805_add_plan_lifecycle.sql`** — 生命周期审计时间和队列索引迁移
+
+### 主要修改
+
+- 未来 Plan 生成为 SCHEDULED，不 supersede 当前 ACTIVE Plan。
+- 新增生命周期处理 API，支持 SCHEDULED → ACTIVE、ACTIVE → PAUSED、PAUSED → CANCELLED。
+- ACTIVE Plan 到期后以乐观锁标记 COMPLETED，并生成 `parentPlanId` 指向父 Plan 的 ACTIVE child Plan。
+- 所有状态变更使用旧状态与 version 条件更新，不删除历史 Plan。
+- `status_changed_at` 记录每次状态变化时间，供 PAUSED 超时判断和审计使用。
+
+### 验证
+
+- Service 测试覆盖全部自动迁移、child renewal 和并发冲突。
+- 本地迁移成功；真实 API 返回 ACTIVE → ACTIVE、`changed=false`，现有 Plan 状态与 version 未变化。
+
+### 下一步行动
+
+- [ ] 按堆叠顺序合并 MVP PR
+
 ## 2026-08-05 会话 16：ExerciseFeedback and HURT Substitution
 
 ### 创建的文件

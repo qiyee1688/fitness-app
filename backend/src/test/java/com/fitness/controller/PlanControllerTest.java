@@ -6,6 +6,7 @@ import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.domain.FeedbackType;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.service.PlanService;
 import org.apache.ibatis.annotations.Mapper;
@@ -66,6 +67,22 @@ class PlanControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.planId").value("plan-id"))
                 .andExpect(jsonPath("$.data.totalWeeks").value(8));
+    }
+
+    @Test
+    void lifecycleProcessReturnsUnifiedTransitionResponse() throws Exception {
+        when(planService.processLifecycle("demo", LocalDate.of(2026, 8, 15)))
+                .thenReturn(new PlanLifecycleResponse(
+                        "plan-id", PlanStatus.ACTIVE, PlanStatus.PAUSED, null, true));
+
+        mockMvc.perform(post("/plans/lifecycle/process")
+                        .param("username", "demo")
+                        .param("date", "2026-08-15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.previousStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.currentStatus").value("PAUSED"))
+                .andExpect(jsonPath("$.data.changed").value(true));
     }
 
 

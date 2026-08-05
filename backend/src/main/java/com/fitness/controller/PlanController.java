@@ -5,6 +5,7 @@ import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.service.PlanService;
@@ -41,6 +42,15 @@ public class PlanController {
             @Valid @RequestBody GeneratePlanRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success(planService.generatePlan(request)));
+    }
+
+    @PostMapping("/lifecycle/process")
+    public ResponseEntity<ApiResponse<PlanLifecycleResponse>> processLifecycle(
+            @RequestParam(defaultValue = "demo") @NotBlank String username,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(planService.processLifecycle(username, date)));
     }
 
     @GetMapping("/current")

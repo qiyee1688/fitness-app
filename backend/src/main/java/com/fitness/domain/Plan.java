@@ -17,6 +17,7 @@ public class Plan {
     private LocalDate endDate;
     private String parentPlanId;
     private int version;
+    private LocalDateTime statusChangedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<Workout> workouts;

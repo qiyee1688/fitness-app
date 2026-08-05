@@ -46,10 +46,11 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - Implementation issues 已拆分为 [#2](https://github.com/qiyee1688/fitness-app/issues/2) 到 [#8](https://github.com/qiyee1688/fitness-app/issues/8)。
 - Plan Generator、Plan View 与 Today Workout 已完成：可查看 8 周安排、打开当天 Workout、完成幂等打卡并跳转 Exercise 详情。
 - ExerciseFeedback 已完成：支持四类反馈，HURT 会记录身体部位、立即替换或安全移除当前动作，并保存未来 4 周过滤状态。
+- Plan 生命周期自动化已完成：支持未来排队、超时 PAUSED/CANCELLED、到期 child Plan 自动续期和乐观锁迁移。
 
 当前优先级：
 
-1. 进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)，完善长期 Plan 状态流转。
+1. 按依赖顺序合并 MVP implementation PR，并进行一次完整主路径回归。
 
 ## 4. 开发阶段计划
 

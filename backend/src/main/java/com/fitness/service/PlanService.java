@@ -4,6 +4,7 @@ import com.fitness.domain.Exercise;
 import com.fitness.domain.ExerciseFeedback;
 import com.fitness.domain.FeedbackType;
 import com.fitness.domain.Plan;
+import com.fitness.domain.PlanStatus;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.User;
 import com.fitness.domain.UserProfile;
@@ -12,6 +13,7 @@ import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 public class PlanService {
 
     private static final int PLAN_WEEKS = 8;
+    private static final int INACTIVITY_WEEKS = 2;
 
     private final UserMapper userMapper;
     private final ExerciseMapper exerciseMapper;
@@ -70,19 +73,68 @@ public class PlanService {
             throw new BusinessException(ErrorCode.PLAN_GENERATION_FAILED);
         }
 
+        LocalDate startDate = request.startDate() == null ? LocalDate.now() : request.startDate();
+        PlanStatus initialStatus = startDate.isAfter(LocalDate.now())
+                ? PlanStatus.SCHEDULED
+                : PlanStatus.ACTIVE;
         Plan activePlan = planMapper.findActiveByUserId(user.getId());
-        if (activePlan != null && planMapper.supersedeActive(activePlan.getId(), activePlan.getVersion()) != 1) {
+        if (initialStatus == PlanStatus.ACTIVE && activePlan != null
+                && planMapper.supersedeActive(activePlan.getId(), activePlan.getVersion()) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
         }
 
-        LocalDate startDate = request.startDate() == null ? LocalDate.now() : request.startDate();
         Plan plan = planGenerator.generate(profile, candidates, startDate);
-        planMapper.insertPlan(plan);
-        for (Workout workout : plan.getWorkouts()) {
-            planMapper.insertWorkout(workout);
-            workout.getPrescriptions().forEach(planMapper::insertPrescription);
-        }
+        plan.setStatus(initialStatus);
+        plan.setStatusChangedAt(LocalDateTime.now());
+        persistPlan(plan);
         return toResponse(plan);
+    }
+
+    public PlanLifecycleResponse processLifecycle(String username, LocalDate date) {
+        User user = findUser(username);
+        LocalDate processingDate = date == null ? LocalDate.now() : date;
+        LocalDateTime changedAt = processingDate.atStartOfDay();
+
+        Plan active = planMapper.findActiveByUserId(user.getId());
+        if (active != null) {
+            if (processingDate.isAfter(active.getEndDate())) {
+                transition(active, PlanStatus.ACTIVE, PlanStatus.COMPLETED, changedAt);
+                Plan child = createRenewalPlan(user, active, processingDate, changedAt);
+                return new PlanLifecycleResponse(
+                        active.getId(), PlanStatus.ACTIVE, PlanStatus.COMPLETED,
+                        child.getId(), true);
+            }
+
+            LocalDateTime latestCompletedAt = planMapper.findLatestCompletedAt(active.getId());
+            LocalDate lastActivityDate = latestCompletedAt == null
+                    ? active.getStartDate()
+                    : latestCompletedAt.toLocalDate();
+            if (!processingDate.isBefore(lastActivityDate.plusWeeks(INACTIVITY_WEEKS))) {
+                transition(active, PlanStatus.ACTIVE, PlanStatus.PAUSED, changedAt);
+                return new PlanLifecycleResponse(
+                        active.getId(), PlanStatus.ACTIVE, PlanStatus.PAUSED, null, true);
+            }
+            return unchanged(active);
+        }
+
+        Plan paused = planMapper.findPausedByUserId(user.getId());
+        if (paused != null) {
+            LocalDate pausedDate = paused.getStatusChangedAt().toLocalDate();
+            if (!processingDate.isBefore(pausedDate.plusWeeks(INACTIVITY_WEEKS))) {
+                transition(paused, PlanStatus.PAUSED, PlanStatus.CANCELLED, changedAt);
+                return new PlanLifecycleResponse(
+                        paused.getId(), PlanStatus.PAUSED, PlanStatus.CANCELLED, null, true);
+            }
+            return unchanged(paused);
+        }
+
+        Plan scheduled = planMapper.findNextScheduledByUserId(user.getId(), processingDate);
+        if (scheduled != null) {
+            transition(scheduled, PlanStatus.SCHEDULED, PlanStatus.ACTIVE, changedAt);
+            return new PlanLifecycleResponse(
+                    scheduled.getId(), PlanStatus.SCHEDULED, PlanStatus.ACTIVE, null, true);
+        }
+        return new PlanLifecycleResponse(null, null, null, null, false);
     }
 
     @Transactional(readOnly = true)
@@ -225,6 +277,56 @@ public class PlanService {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         return user;
+    }
+
+    private Plan createRenewalPlan(
+            User user,
+            Plan parent,
+            LocalDate processingDate,
+            LocalDateTime changedAt
+    ) {
+        UserProfile profile = userMapper.findProfileByUserId(user.getId());
+        if (profile == null) {
+            throw new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND);
+        }
+        List<Exercise> candidates = exerciseMapper.findGeneratorCandidates(profile.getAvailableEquipment());
+        if (candidates.isEmpty()) {
+            throw new BusinessException(ErrorCode.PLAN_GENERATION_FAILED);
+        }
+        LocalDate startDate = processingDate.isAfter(parent.getEndDate())
+                ? processingDate
+                : parent.getEndDate().plusDays(1);
+        Plan child = planGenerator.generate(profile, candidates, startDate);
+        child.setParentPlanId(parent.getId());
+        child.setStatus(PlanStatus.ACTIVE);
+        child.setStatusChangedAt(changedAt);
+        persistPlan(child);
+        return child;
+    }
+
+    private void persistPlan(Plan plan) {
+        planMapper.insertPlan(plan);
+        for (Workout workout : plan.getWorkouts()) {
+            planMapper.insertWorkout(workout);
+            workout.getPrescriptions().forEach(planMapper::insertPrescription);
+        }
+    }
+
+    private void transition(
+            Plan plan,
+            PlanStatus expectedStatus,
+            PlanStatus newStatus,
+            LocalDateTime changedAt
+    ) {
+        if (planMapper.transitionStatus(
+                plan.getId(), expectedStatus, newStatus, plan.getVersion(), changedAt) != 1) {
+            throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        }
+    }
+
+    private PlanLifecycleResponse unchanged(Plan plan) {
+        return new PlanLifecycleResponse(
+                plan.getId(), plan.getStatus(), plan.getStatus(), null, false);
     }
 
     private Plan findActivePlan(String userId) {
