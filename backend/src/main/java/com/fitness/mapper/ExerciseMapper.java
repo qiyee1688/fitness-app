@@ -58,4 +58,6 @@ public interface ExerciseMapper {
         @Param("equipment") String equipment,
         @Param("muscleGroup") String muscleGroup
     );
+
+    List<Exercise> findGeneratorCandidates(@Param("equipment") List<String> equipment);
 }
