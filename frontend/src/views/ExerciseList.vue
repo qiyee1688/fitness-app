@@ -27,7 +27,7 @@
       <el-radio-button
         v-for="filter in body_part_filters"
         :key="filter.value"
-        :label="filter.value"
+        :value="filter.value"
       >
         {{ t(filter.label_key) }}
       </el-radio-button>

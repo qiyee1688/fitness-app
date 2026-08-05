@@ -56,7 +56,7 @@
           <el-checkbox-button
             v-for="option in equipment_options"
             :key="option.value"
-            :label="option.value"
+            :value="option.value"
           >
             {{ option.label }}
           </el-checkbox-button>

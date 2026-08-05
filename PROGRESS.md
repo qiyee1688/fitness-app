@@ -57,7 +57,6 @@
 - [x] 实现当天 Workout 查询、原子幂等打卡、Today 页面和中英文状态展示
 - [x] 完成 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
 - [x] 实现四类 Exercise 反馈、HURT 身体部位记录、即时安全替换/移除和未来 4 周过滤状态
-- [ ] 进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
 - [x] 完成 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
 - [x] 实现未来 SCHEDULED、ACTIVE → PAUSED、PAUSED → CANCELLED、到期 COMPLETED + child Plan 自动续期
 
@@ -337,4 +336,17 @@
 - **验证**：
   - Service 测试覆盖 SCHEDULED、PAUSED、CANCELLED、COMPLETED、child renewal 和乐观锁冲突
   - 本地 PostgreSQL 迁移成功，真实 API 幂等调用保持现有 ACTIVE Plan 不变
-- **下一步**：一期 MVP implementation issues #2-#8 已全部完成，等待堆叠 PR 依次合并
+- **下一步**：PR #9、#10、#11 已依次合并；完成 main 主路径回归并收口兼容性告警
+
+
+### 会话 18：2026-08-05
+- **任务**：合并 MVP 堆叠 PR 并执行 main 集成验收
+- **完成**：
+  - PR #9、#10、#11 按依赖顺序合入 main
+  - PostgreSQL/Redis 健康，三个迁移的关键字段和索引核对通过
+  - 修复 Element Plus radio/checkbox button 旧 label value API 警告
+- **验证**：
+  - `mvn test` 40/40 通过
+  - `npm run build` 通过
+  - 浏览器验证动作库、8 周 Plan、Today 休息日和 UserProfile 页面
+- **下一步**：合并 MVP 集成验收 PR，关闭 MVP PRD issue
