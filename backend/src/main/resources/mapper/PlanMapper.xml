@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.PlanMapper">
+
+    <resultMap id="PlanResultMap" type="com.fitness.domain.Plan">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="profileSnapshot" column="profile_snapshot"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="status" column="status"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="parentPlanId" column="parent_plan_id"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="WorkoutResultMap" type="com.fitness.domain.Workout">
+        <id property="id" column="id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="dayNumber" column="day_number"/>
+        <result property="focus" column="focus"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="PrescriptionWithExerciseResultMap" type="com.fitness.domain.Prescription">
+        <id property="id" column="prescription_id"/>
+        <result property="workoutId" column="workout_id"/>
+        <result property="exerciseId" column="exercise_id"/>
+        <result property="sequence" column="sequence"/>
+        <result property="sets" column="sets"/>
+        <result property="reps" column="reps"/>
+        <result property="load" column="load"/>
+        <result property="loadType" column="load_type"/>
+        <result property="rpe" column="rpe"/>
+        <result property="createdAt" column="prescription_created_at"/>
+        <association property="exercise" javaType="com.fitness.domain.Exercise">
+            <id property="id" column="exercise_id"/>
+            <result property="name" column="exercise_name"/>
+            <result property="bodyPart" column="exercise_body_part"/>
+            <result property="target" column="exercise_target"/>
+            <result property="equipment" column="exercise_equipment"/>
+            <result property="gifUrl" column="exercise_gif_url"/>
+            <result property="imageUrl" column="exercise_image_url"/>
+        </association>
+    </resultMap>
+
+    <select id="findActiveByUserId" resultMap="PlanResultMap">
+        SELECT * FROM plans
+        WHERE user_id = #{userId}::uuid AND status = 'ACTIVE'::plan_status_enum
+        LIMIT 1
+    </select>
+
+    <select id="findWorkoutsByPlanId" resultMap="WorkoutResultMap">
+        SELECT * FROM workouts
+        WHERE plan_id = #{planId}::uuid
+        ORDER BY day_number
+    </select>
+
+    <select id="findPrescriptionsByPlanId" resultMap="PrescriptionWithExerciseResultMap">
+        SELECT
+            p.id AS prescription_id, p.workout_id, p.exercise_id, p.sequence,
+            p.sets, p.reps, p.load, p.load_type, p.rpe,
+            p.created_at AS prescription_created_at,
+            e.name AS exercise_name, e.body_part AS exercise_body_part,
+            e.target AS exercise_target, e.equipment AS exercise_equipment,
+            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+        FROM prescriptions p
+        JOIN workouts w ON w.id = p.workout_id
+        JOIN exercises e ON e.id = p.exercise_id
+        WHERE w.plan_id = #{planId}::uuid
+        ORDER BY w.day_number, p.sequence
+    </select>
+
+
+    <select id="findWorkoutByPlanIdAndDayNumber" resultMap="WorkoutResultMap">
+        SELECT * FROM workouts
+        WHERE plan_id = #{planId}::uuid AND day_number = #{dayNumber}
+        LIMIT 1
+    </select>
+
+    <select id="findWorkoutByIdAndPlanId" resultMap="WorkoutResultMap">
+        SELECT * FROM workouts
+        WHERE id = #{id}::uuid AND plan_id = #{planId}::uuid
+        LIMIT 1
+    </select>
+
+    <select id="findPrescriptionsByWorkoutId" resultMap="PrescriptionWithExerciseResultMap">
+        SELECT
+            p.id AS prescription_id, p.workout_id, p.exercise_id, p.sequence,
+            p.sets, p.reps, p.load, p.load_type, p.rpe,
+            p.created_at AS prescription_created_at,
+            e.name AS exercise_name, e.body_part AS exercise_body_part,
+            e.target AS exercise_target, e.equipment AS exercise_equipment,
+            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+        FROM prescriptions p
+        JOIN exercises e ON e.id = p.exercise_id
+        WHERE p.workout_id = #{workoutId}::uuid
+        ORDER BY p.sequence
+    </select>
+
+    <update id="completeWorkout">
+        UPDATE workouts
+        SET completed_at = #{completedAt}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}::uuid AND completed_at IS NULL
+    </update>
+
+    <update id="supersedeActive">
+        UPDATE plans
+        SET status = 'SUPERSEDED'::plan_status_enum,
+            version = version + 1
+        WHERE id = #{id}::uuid
+          AND status = 'ACTIVE'::plan_status_enum
+          AND version = #{version}
+    </update>
+
+    <insert id="insertPlan" parameterType="com.fitness.domain.Plan">
+        INSERT INTO plans (
+            id, user_id, profile_snapshot, status, start_date, end_date,
+            parent_plan_id, version
+        ) VALUES (
+            #{id}::uuid,
+            #{userId}::uuid,
+            #{profileSnapshot, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{status}::plan_status_enum,
+            #{startDate},
+            #{endDate},
+            #{parentPlanId}::uuid,
+            #{version}
+        )
+    </insert>
+
+    <insert id="insertWorkout" parameterType="com.fitness.domain.Workout">
+        INSERT INTO workouts (id, plan_id, day_number, focus)
+        VALUES (#{id}::uuid, #{planId}::uuid, #{dayNumber}, #{focus}::training_day_focus_enum)
+    </insert>
+
+    <insert id="insertPrescription" parameterType="com.fitness.domain.Prescription">
+        INSERT INTO prescriptions (
+            id, workout_id, exercise_id, sequence, sets, reps, load, load_type, rpe
+        ) VALUES (
+            #{id}::uuid,
+            #{workoutId}::uuid,
+            #{exerciseId},
+            #{sequence},
+            #{sets},
+            #{reps},
+            #{load},
+            #{loadType}::load_type_enum,
+            #{rpe}
+        )
+    </insert>
+
+</mapper>

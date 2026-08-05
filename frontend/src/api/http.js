@@ -13,7 +13,10 @@ export async function api_get(path, params = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok || payload?.code !== 0) {
-    throw new Error(payload?.message || 'Request failed')
+    const error = new Error(payload?.message || 'Request failed')
+    error.code = payload?.code
+    error.status = response.status
+    throw error
   }
 
   return payload.data
@@ -30,7 +33,10 @@ export async function api_post(path, body = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok || payload?.code !== 0) {
-    throw new Error(payload?.message || 'Request failed')
+    const error = new Error(payload?.message || 'Request failed')
+    error.code = payload?.code
+    error.status = response.status
+    throw error
   }
 
   return payload.data

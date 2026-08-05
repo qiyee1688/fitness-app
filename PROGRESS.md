@@ -1,6 +1,6 @@
 # Fitness App 开发进度
 
-**最后更新**：2026-08-03
+**最后更新**：2026-08-05
 
 ---
 
@@ -10,8 +10,8 @@
 - **项目初始化**：✅ 完成
 - **切片 1**：✅ 完成（Exercise 数据导入 + API + 前端视觉 QA）
 - **切片 2**：✅ 完成（UserProfile API + 前端表单 + 中英文展示）
-- **切片 3**：⏳ 待开始
-- **切片 4**：⏳ 待开始
+- **切片 3**：✅ 完成（Plan Generator + Plan View）
+- **切片 4**：✅ 完成（Today Workout 查询 + 幂等打卡 + 前端视觉 QA）
 - **PRD / Issues**：✅ PRD 已发布，implementation issues 已拆分
 
 ---
@@ -46,7 +46,14 @@
 - [x] 运行 `/to-issues` 拆分 PRD
 - [x] 整理 App 开发计划与简单功能说明：[`docs/app-development-plan.md`](docs/app-development-plan.md)
 - [x] 完成 [#3 UserProfile End-to-End](https://github.com/qiyee1688/fitness-app/issues/3)
-- [ ] 进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+- [x] 完成 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+- [x] 实现纯 Plan Generator、持久化 Service 与 `POST /api/plans/generate`
+- [x] 应用 `20260805_add_plan_optimistic_lock.sql` 并完成真实 API 持久化验证
+- [x] 完成 [#5 Plan View](https://github.com/qiyee1688/fitness-app/issues/5)
+- [x] 实现 ACTIVE Plan 查询、8 周查看页、处方展示和 Exercise 详情跳转
+- [x] 完成 [#6 Today Workout Check-in](https://github.com/qiyee1688/fitness-app/issues/6)
+- [x] 实现当天 Workout 查询、原子幂等打卡、Today 页面和中英文状态展示
+- [ ] 进入 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
 
 ### GitHub Issues ✅
 - [x] [#1 PRD: Fitness Coaching App MVP](https://github.com/qiyee1688/fitness-app/issues/1)
@@ -250,3 +257,49 @@
   - Shell 脚本语法检查通过
   - 模拟坏环境 `JAVA_HOME=/usr PATH=/usr/bin:/bin:/usr/sbin:/sbin scripts/backend.sh test` 通过（15 tests）
 - **下一步**：继续进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+
+### 会话 13：2026-08-05
+- **任务**：实现 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)
+- **完成**：
+  - 新增独立 `PlanGenerator`，按 `daysPerWeek` 降级生成默认 8 周 Plan
+  - 生成 Push / Pull / Legs / FullBody Workout，并按 Focus 附加 Core Exercise
+  - 生成含 sets / reps / loadType / rpe 的 Prescription
+  - Plan 保存 UserProfile JSONB 快照，后续档案修改不影响已生成 Plan
+  - 新增 Plan / Workout / Prescription 参数化 MyBatis 持久化
+  - 新增 `POST /api/plans/generate`，保持统一 API 响应和 Service 业务边界
+  - ACTIVE Plan 切换使用 `version` 乐观锁，并增加单用户 ACTIVE Plan 部分唯一索引
+- **验证**：
+  - `mvn test` 通过（21 tests）
+  - Spring Boot 在 8081 端口启动成功并连接本地 PostgreSQL
+  - 已应用 `20260805_add_plan_optimistic_lock.sql`，确认 `version` 列与单 ACTIVE 部分唯一索引生效
+  - 真实生成与重生成 API 均返回成功，每条 Plan 含 32 个 Workout、144 个 Prescription
+  - 重生成后旧 Plan 为 `SUPERSEDED(version=1)`，新 Plan 为 `ACTIVE(version=0)`，用户 ACTIVE Plan 数量为 1
+  - 新 Plan 的 UserProfile JSONB 快照与 demo 档案一致
+- **下一步**：进入 [#5 Plan View](https://github.com/qiyee1688/fitness-app/issues/5)
+
+
+### 会话 14：2026-08-05
+- **任务**：完成 #5 Plan View
+- **完成**：
+  - 新增 `GET /api/plans/current`，Service 层聚合 ACTIVE Plan、Workout、Prescription 和 Exercise 摘要
+  - 使用 3 次批量查询避免 Workout 级 N+1
+  - 新增中英文 8 周 Plan 页面、周切换、加载/空数据/无 ACTIVE Plan/API 错误状态
+  - Prescription 可跳转至现有 Exercise 详情页
+  - 真实数据验证：8 周、32 个 Workout、144 个 Prescription
+  - `mvn test` 24/24 通过，`npm run build` 通过
+- **下一步**：进入 #6 Today Workout Check-in
+
+### 会话 15：2026-08-05
+- **任务**：完成 [#6 Today Workout Check-in](https://github.com/qiyee1688/fitness-app/issues/6)
+- **完成**：
+  - 新增 `GET /api/plans/today`，按 ACTIVE Plan 的 `startDate` 和请求日期确定当天 Workout
+  - 新增 `POST /api/plans/workouts/{workoutId}/complete`，使用条件更新原子写入 `completed_at`
+  - 重复打卡保持幂等，返回原完成时间并标记 `alreadyCompleted=true`
+  - 新增中英文 Today 页面，覆盖加载、错误、无 ACTIVE Plan、休息日和已完成状态
+  - 展示顺序 Prescription、sets、reps、RPE、可读 LoadType，并支持跳转 Exercise 详情
+- **验证**：
+  - `mvn test` 30/30 通过
+  - `npm run build` 通过
+  - 真实 API 首次打卡写入 `2026-08-05T13:55:36.454657`，重复调用返回相同时间
+  - 浏览器验证中文“自重 / 按 RPE”、英文“Body weight / RPE only”，并实际跳转 `/exercises/3293`
+- **下一步**：进入 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)

@@ -285,6 +285,267 @@ h2 {
   line-height: 1.7;
 }
 
+
+.plan-page {
+  display: grid;
+  gap: 18px;
+}
+
+.plan-page .page-header {
+  margin-bottom: 0;
+}
+
+.plan-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #dfe5dc;
+  border-radius: 10px;
+  padding: 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #edf5ee 100%);
+}
+
+.plan-summary h2 {
+  margin: 14px 0 6px;
+}
+
+.plan-summary p {
+  margin-bottom: 0;
+  color: #50685a;
+}
+
+.plan-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.plan-stats div {
+  display: grid;
+  gap: 3px;
+  min-width: 92px;
+  border-left: 1px solid #d4ded3;
+  padding-left: 16px;
+}
+
+.plan-stats strong {
+  font-size: 24px;
+}
+
+.plan-stats span,
+.scheduled-date span,
+.prescription-row small,
+.empty-hint {
+  color: #66806d;
+  font-size: 12px;
+}
+
+.empty-hint {
+  margin: -12px 0 18px;
+}
+
+.week-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+}
+
+.week-tabs .el-button + .el-button {
+  margin-left: 0;
+}
+
+.workout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.workout-card {
+  overflow: hidden;
+  border: 1px solid #dfe5dc;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.workout-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e7ebe5;
+  padding: 18px;
+}
+
+.workout-header h2,
+.workout-header .eyebrow {
+  margin-bottom: 0;
+}
+
+.scheduled-date {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.prescription-list {
+  display: grid;
+}
+
+.prescription-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid #edf0ec;
+  padding: 13px 18px;
+  transition: background 150ms ease;
+}
+
+.prescription-row:last-child {
+  border-bottom: 0;
+}
+
+.prescription-row:hover,
+.prescription-row:focus-visible {
+  background: #f2f7f1;
+}
+
+.sequence {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e8f1e8;
+  color: #32573d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.exercise-copy,
+.prescription-basics {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.exercise-copy strong,
+.exercise-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prescription-basics {
+  text-align: right;
+}
+
+
+.today-page {
+  display: grid;
+  gap: 18px;
+}
+
+.today-page .page-header {
+  margin-bottom: 0;
+}
+
+.today-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  overflow: hidden;
+  border: 1px solid #d6e1d7;
+  border-radius: 12px;
+  padding: 26px;
+  background: linear-gradient(135deg, #ffffff 0%, #eaf4eb 68%, #dceede 100%);
+}
+
+.today-hero.completed {
+  background: linear-gradient(135deg, #ffffff 0%, #e4f5e8 100%);
+}
+
+.today-hero h2 {
+  margin: 10px 0 6px;
+  font-size: 28px;
+}
+
+.today-hero p {
+  margin-bottom: 0;
+  color: #50685a;
+}
+
+.today-date {
+  margin-top: 14px;
+  font-weight: 700;
+}
+
+.completion-action {
+  display: grid;
+  gap: 5px;
+  min-width: 180px;
+  text-align: right;
+}
+
+.completion-action span {
+  color: #66806d;
+  font-size: 13px;
+}
+
+.today-prescriptions {
+  display: grid;
+  gap: 12px;
+}
+
+.today-prescription-card {
+  display: grid;
+  grid-template-columns: 32px minmax(180px, 1fr) minmax(320px, auto);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid #dfe5dc;
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: #ffffff;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.today-prescription-card:hover,
+.today-prescription-card:focus-visible {
+  border-color: #9cb6a1;
+  box-shadow: 0 8px 24px rgba(37, 67, 46, 0.08);
+  transform: translateY(-1px);
+}
+
+.prescription-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(56px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.prescription-metrics div {
+  min-width: 0;
+  border-left: 1px solid #e5eae3;
+  padding-left: 12px;
+}
+
+.prescription-metrics dt {
+  margin-bottom: 4px;
+  color: #66806d;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.prescription-metrics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 750;
+}
+
 @media (max-width: 760px) {
   .main {
     padding: 18px;
@@ -334,5 +595,60 @@ h2 {
 
   .meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .plan-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plan-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .plan-stats div {
+    min-width: 0;
+    border-left: 0;
+    border-top: 1px solid #d4ded3;
+    padding: 10px 0 0;
+  }
+
+  .workout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prescription-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .prescription-basics {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .today-hero {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .completion-action {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .today-prescription-card {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .prescription-metrics {
+    grid-column: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prescription-metrics div {
+    border-left: 0;
+    border-top: 1px solid #e5eae3;
+    padding: 8px 0 0;
   }
 }

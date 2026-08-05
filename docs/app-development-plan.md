@@ -1,6 +1,6 @@
 # Fitness App 开发计划与功能说明
 
-最后更新：2026-08-03
+最后更新：2026-08-05
 
 ## 1. 产品定位
 
@@ -44,11 +44,12 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - 页面支持中文 / English 语言切换，中文页面名称、内容和标签已中文化。
 - MVP PRD 已发布为 [#1](https://github.com/qiyee1688/fitness-app/issues/1)。
 - Implementation issues 已拆分为 [#2](https://github.com/qiyee1688/fitness-app/issues/2) 到 [#8](https://github.com/qiyee1688/fitness-app/issues/8)。
+- Plan Generator、Plan View 与 Today Workout 已完成：可查看 8 周安排、打开当天 Workout、完成幂等打卡并跳转 Exercise 详情。
 
 当前优先级：
 
-1. 进入 [#4 Plan Generator MVP](https://github.com/qiyee1688/fitness-app/issues/4)，根据 UserProfile 生成默认 8 周 Plan。
-2. Plan Generator 完成后进入 [#5 Plan View](https://github.com/qiyee1688/fitness-app/issues/5)，把生成结果展示给用户。
+1. 进入 [#7 ExerciseFeedback](https://github.com/qiyee1688/fitness-app/issues/7)，让训练反馈影响后续安排。
+2. 随后进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)，完善长期 Plan 状态流转。
 
 ## 4. 开发阶段计划
 
@@ -135,7 +136,7 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - ACTIVE Plan 切换明确使用乐观锁或 Redis 分布式锁策略。
 - `mvn test` 通过。
 
-### 阶段 4：Plan View
+### 阶段 4：Plan View（已完成）
 
 对应 issue：[#5](https://github.com/qiyee1688/fitness-app/issues/5)
 
@@ -154,7 +155,7 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - 页面能支撑后续 Today Workout 入口。
 - `mvn test` 和 `npm run build` 通过。
 
-### 阶段 5：Today Workout 打卡
+### 阶段 5：Today Workout 打卡（已完成）
 
 对应 issue：[#6](https://github.com/qiyee1688/fitness-app/issues/6)
 

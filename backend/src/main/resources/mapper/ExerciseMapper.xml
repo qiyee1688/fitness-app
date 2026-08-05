@@ -107,4 +107,18 @@
         </where>
     </select>
 
+    <select id="findGeneratorCandidates" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises
+        <where>
+            <if test="equipment != null and equipment.size() > 0">
+                equipment IN
+                <foreach collection="equipment" item="item" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+                OR equipment = 'body weight'
+            </if>
+        </where>
+        ORDER BY body_part, target, name
+    </select>
+
 </mapper>

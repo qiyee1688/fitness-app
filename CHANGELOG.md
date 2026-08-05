@@ -4,6 +4,95 @@
 
 ---
 
+## 2026-08-05 会话 15：Today Workout Check-in
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/dto/TodayWorkoutResponse.java`** — 当天 Workout 与打卡结果 DTO
+- **`frontend/src/views/TodayWorkout.vue`** — 中英文今日训练与完成状态页面
+
+### 主要修改
+
+- Plan Mapper 新增当天 Workout、单 Workout、Prescription 查询和 `completed_at IS NULL` 条件更新。
+- Plan Service 负责日期到 `dayNumber` 的换算、ACTIVE Plan 归属校验、DTO 塑形和重复打卡幂等语义。
+- 新增 `GET /api/plans/today` 与 `POST /api/plans/workouts/{workoutId}/complete`，Controller 保持薄层。
+- 前端增加 Today 路由、导航、API 客户端、完成后原位更新，以及完整加载/空态/错误状态。
+- LoadType 在中文显示“自重 / 按 RPE”，在英文显示“Body weight / RPE only”。
+
+### 验证
+
+- `mvn test`：30 tests 全部通过。
+- `npm run build`：生产构建成功，仅保留既有的大 chunk 警告。
+- 真实 API 验证首次完成写入 `2026-08-05T13:55:36.454657`，重复完成返回相同时间且 `alreadyCompleted=true`。
+- 浏览器走查中英文 Today 页面，并实际从首条 Prescription 跳转到 `/exercises/3293`。
+
+### 下一步行动
+
+- [ ] 进入 #7 ExerciseFeedback and HURT Substitution
+
+## 2026-08-05 会话 14：Plan View
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/dto/PlanDetailResponse.java`** — ACTIVE Plan 查看 DTO
+- **`frontend/src/api/plan.js`** — 当前 Plan API 客户端
+- **`frontend/src/views/PlanView.vue`** — 中英文 8 周 Plan 查看页
+
+### 主要修改
+
+- Plan Mapper 批量读取 Workout 与 Prescription/Exercise，避免 N+1 查询。
+- Plan Service 负责周次、训练日期和嵌套 DTO 塑形；Controller 保持参数校验与统一响应包装。
+- 新增 ACTIVE Plan 不存在错误码，并让前端 HTTP 错误保留业务 code/status。
+- 增加 Plan 路由和导航、8 周切换、处方基础信息、Exercise 详情链接，以及加载/空数据/错误状态。
+- 增加桌面与移动端响应式样式。
+
+### 验证
+
+- `mvn test`：24 tests 全部通过。
+- `npm run build`：生产构建成功。
+- 真实 `GET /api/plans/current?username=demo`：ACTIVE Plan 包含 8 周、32 个 Workout、144 个 Prescription。
+- 浏览器走查中文、English 页面，并验证首条 Prescription 跳转到 `/exercises/3293`。
+
+### 下一步行动
+
+- [ ] 进入 #6 Today Workout Check-in
+
+## 2026-08-05 会话 13：Plan Generator MVP
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/domain/{Plan,Workout,Prescription}.java`** — Plan 聚合领域对象
+- **`backend/src/main/java/com/fitness/domain/{PlanStatus,TrainingDayFocus,LoadType}.java`** — Plan 相关枚举
+- **`backend/src/main/java/com/fitness/service/PlanGenerator.java`** — 可脱离 HTTP/数据库测试的 8 周生成器
+- **`backend/src/main/java/com/fitness/service/PlanService.java`** — 生成、替换与持久化编排
+- **`backend/src/main/java/com/fitness/controller/PlanController.java`** — Plan 生成 API
+- **`backend/src/main/java/com/fitness/mapper/PlanMapper.java`** 与 **`backend/src/main/resources/mapper/PlanMapper.xml`** — 参数化 Plan 聚合持久化
+- **`backend/src/main/resources/migration/20260805_add_plan_optimistic_lock.sql`** — ACTIVE Plan 乐观锁迁移
+- **`backend/src/test/java/com/fitness/{service,controller}/Plan*.java`** — Generator、Service、Controller 测试
+
+### 关键决策
+
+- #4 只实现后端 Plan Generator 垂直切片；Plan 查看 UI 保留给 #5。
+- 无 Template 时按 `daysPerWeek` 生成 8 周默认结构，保证 Plan/Workout/Prescription 非空。
+- 重生成通过 `plans.version` 乐观锁将旧 ACTIVE Plan 标为 SUPERSEDED，并用部分唯一索引兜底单 ACTIVE 约束。
+- 器械候选查询始终允许 `body weight`，并保持 MyBatis 参数化查询。
+
+### 验证
+
+- `mvn test`：21 tests 全部通过。
+- Spring Boot 3.5.16：8081 端口启动成功，MyBatis Mapper 加载并连接 PostgreSQL。
+- 已应用 `20260805_add_plan_optimistic_lock.sql`，核对 `plans.version` 与 ACTIVE Plan 部分唯一索引。
+- 两次真实生成 API 均成功：每条 Plan 32 个 Workout、144 个 Prescription。
+- 重生成后旧 Plan 为 `SUPERSEDED(version=1)`，新 Plan 为 `ACTIVE(version=0)`，ACTIVE 数量严格为 1。
+- UserProfile 已作为 JSONB 快照写入新 Plan。
+
+### 下一步行动
+
+- [x] 应用 `20260805_add_plan_optimistic_lock.sql`
+- [x] 真实调用生成与重生成 API，核对 8 周 Workout/Prescription 数量和旧 Plan SUPERSEDED 状态
+- [x] 关闭 #4
+- [ ] 进入 #5 Plan View
+
 ## 2026-08-03 会话 1：领域建模 + 项目初始化
 
 ### 创建的文件

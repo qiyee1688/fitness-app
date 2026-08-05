@@ -77,6 +77,7 @@ CREATE TABLE plans (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     parent_plan_id UUID REFERENCES plans(id) ON DELETE SET NULL,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plan_user FOREIGN KEY (user_id) REFERENCES users(id),
@@ -86,6 +87,8 @@ CREATE TABLE plans (
 CREATE INDEX idx_plans_user_id ON plans(user_id);
 CREATE INDEX idx_plans_status ON plans(status);
 CREATE INDEX idx_plans_start_date ON plans(start_date);
+CREATE UNIQUE INDEX uq_plans_one_active_per_user
+    ON plans(user_id) WHERE status = 'ACTIVE';
 
 -- ============================================================
 -- Table: workouts (训练日)

@@ -1,0 +1,271 @@
+package com.fitness.service;
+
+import com.fitness.domain.Exercise;
+import com.fitness.domain.FitnessLevel;
+import com.fitness.domain.Goal;
+import com.fitness.domain.Plan;
+import com.fitness.domain.Prescription;
+import com.fitness.domain.TrainingDayFocus;
+import com.fitness.domain.Workout;
+import com.fitness.domain.User;
+import com.fitness.domain.UserProfile;
+import com.fitness.dto.GeneratePlanRequest;
+import com.fitness.dto.GeneratedPlanResponse;
+import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.exception.BusinessException;
+import com.fitness.exception.ErrorCode;
+import com.fitness.mapper.ExerciseMapper;
+import com.fitness.mapper.PlanMapper;
+import com.fitness.mapper.UserMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class PlanServiceTest {
+
+    @Mock private UserMapper userMapper;
+    @Mock private ExerciseMapper exerciseMapper;
+    @Mock private PlanMapper planMapper;
+
+    private PlanService planService;
+
+    @BeforeEach
+    void setUp() {
+        planService = new PlanService(userMapper, exerciseMapper, planMapper, new PlanGenerator());
+    }
+
+    @Test
+    void generatesPersistsAndSupersedesExistingActivePlan() {
+        User user = user();
+        UserProfile profile = profile();
+        Plan active = new Plan();
+        active.setId("33333333-3333-3333-3333-333333333333");
+        active.setVersion(2);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile);
+        when(exerciseMapper.findGeneratorCandidates(profile.getAvailableEquipment()))
+                .thenReturn(List.of(exercise()));
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.supersedeActive(active.getId(), 2)).thenReturn(1);
+
+        GeneratedPlanResponse response = planService.generatePlan(
+                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 10)));
+
+        assertThat(response.workoutCount()).isEqualTo(16);
+        assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 10, 4));
+        verify(planMapper).supersedeActive(active.getId(), 2);
+        verify(planMapper).insertPlan(any(Plan.class));
+        verify(planMapper, times(16)).insertWorkout(any());
+        verify(planMapper, times(80)).insertPrescription(any());
+    }
+
+    @Test
+    void rejectsConcurrentActivePlanChange() {
+        User user = user();
+        Plan active = new Plan();
+        active.setId("33333333-3333-3333-3333-333333333333");
+        active.setVersion(2);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile());
+        when(exerciseMapper.findGeneratorCandidates(any())).thenReturn(List.of(exercise()));
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.supersedeActive(active.getId(), 2)).thenReturn(0);
+
+        assertThatThrownBy(() -> planService.generatePlan(new GeneratePlanRequest("demo", null)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PLAN_CONFLICT));
+    }
+
+    @Test
+    void returnsActivePlanWithWorkoutDatesAndExerciseDetails() {
+        User user = user();
+        Plan active = new Plan();
+        active.setId("33333333-3333-3333-3333-333333333333");
+        active.setStatus(com.fitness.domain.PlanStatus.ACTIVE);
+        active.setStartDate(LocalDate.of(2026, 8, 12));
+        active.setEndDate(LocalDate.of(2026, 10, 6));
+        active.setProfileSnapshot(Map.of("daysPerWeek", 2));
+        Workout workout = new Workout();
+        workout.setId("44444444-4444-4444-4444-444444444444");
+        workout.setDayNumber(8);
+        workout.setFocus(TrainingDayFocus.FULL_BODY);
+        Prescription prescription = new Prescription();
+        prescription.setId("55555555-5555-5555-5555-555555555555");
+        prescription.setWorkoutId(workout.getId());
+        prescription.setSequence(1);
+        prescription.setSets(3);
+        prescription.setReps(10);
+        prescription.setRpe(new BigDecimal("7.0"));
+        prescription.setExercise(exercise());
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutsByPlanId(active.getId())).thenReturn(List.of(workout));
+        when(planMapper.findPrescriptionsByPlanId(active.getId())).thenReturn(List.of(prescription));
+
+        PlanDetailResponse response = planService.getActivePlan("demo");
+
+        assertThat(response.totalWeeks()).isEqualTo(8);
+        assertThat(response.workouts()).singleElement().satisfies(detail -> {
+            assertThat(detail.weekNumber()).isEqualTo(2);
+            assertThat(detail.scheduledDate()).isEqualTo(LocalDate.of(2026, 8, 19));
+            assertThat(detail.prescriptions()).singleElement().satisfies(item ->
+                    assertThat(item.exercise().id()).isEqualTo("core"));
+        });
+    }
+
+    @Test
+    void reportsWhenUserHasNoActivePlan() {
+        User user = user();
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(null);
+
+        assertThatThrownBy(() -> planService.getActivePlan("demo"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ACTIVE_PLAN_NOT_FOUND));
+    }
+
+
+    @Test
+    void returnsWorkoutScheduledForRequestedDate() {
+        User user = user();
+        Plan active = activePlan();
+        Workout workout = workout(8);
+        Prescription prescription = prescription(workout.getId());
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByPlanIdAndDayNumber(active.getId(), 8)).thenReturn(workout);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of(prescription));
+
+        TodayWorkoutResponse response = planService.getTodayWorkout(
+                "demo", LocalDate.of(2026, 8, 19));
+
+        assertThat(response.dayNumber()).isEqualTo(8);
+        assertThat(response.scheduledDate()).isEqualTo(LocalDate.of(2026, 8, 19));
+        assertThat(response.prescriptions()).singleElement().satisfies(item ->
+                assertThat(item.exercise().id()).isEqualTo("core"));
+    }
+
+    @Test
+    void reportsRestDayWhenNoWorkoutIsScheduled() {
+        User user = user();
+        Plan active = activePlan();
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByPlanIdAndDayNumber(active.getId(), 5)).thenReturn(null);
+
+        assertThatThrownBy(() -> planService.getTodayWorkout(
+                "demo", LocalDate.of(2026, 8, 16)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.TODAY_WORKOUT_NOT_FOUND));
+    }
+
+    @Test
+    void completesWorkoutWithAtomicUpdate() {
+        User user = user();
+        Plan active = activePlan();
+        Workout workout = workout(1);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(workout.getId(), active.getId())).thenReturn(workout);
+        when(planMapper.completeWorkout(org.mockito.ArgumentMatchers.eq(workout.getId()), any(LocalDateTime.class)))
+                .thenReturn(1);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of());
+
+        TodayWorkoutResponse response = planService.completeWorkout("demo", workout.getId());
+
+        assertThat(response.completedAt()).isNotNull();
+        assertThat(response.alreadyCompleted()).isFalse();
+        verify(planMapper).completeWorkout(org.mockito.ArgumentMatchers.eq(workout.getId()), any(LocalDateTime.class));
+    }
+
+    @Test
+    void returnsExistingCompletionIdempotently() {
+        User user = user();
+        Plan active = activePlan();
+        Workout workout = workout(1);
+        workout.setCompletedAt(LocalDateTime.of(2026, 8, 12, 9, 30));
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(workout.getId(), active.getId())).thenReturn(workout);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of());
+
+        TodayWorkoutResponse response = planService.completeWorkout("demo", workout.getId());
+
+        assertThat(response.alreadyCompleted()).isTrue();
+        assertThat(response.completedAt()).isEqualTo(LocalDateTime.of(2026, 8, 12, 9, 30));
+        verify(planMapper, never()).completeWorkout(org.mockito.ArgumentMatchers.anyString(), any(LocalDateTime.class));
+    }
+
+    private Plan activePlan() {
+        Plan plan = new Plan();
+        plan.setId("33333333-3333-3333-3333-333333333333");
+        plan.setStartDate(LocalDate.of(2026, 8, 12));
+        plan.setEndDate(LocalDate.of(2026, 10, 6));
+        return plan;
+    }
+
+    private Workout workout(int dayNumber) {
+        Workout workout = new Workout();
+        workout.setId("44444444-4444-4444-4444-444444444444");
+        workout.setDayNumber(dayNumber);
+        workout.setFocus(TrainingDayFocus.FULL_BODY);
+        return workout;
+    }
+
+    private Prescription prescription(String workoutId) {
+        Prescription prescription = new Prescription();
+        prescription.setId("55555555-5555-5555-5555-555555555555");
+        prescription.setWorkoutId(workoutId);
+        prescription.setSequence(1);
+        prescription.setSets(3);
+        prescription.setReps(10);
+        prescription.setRpe(new BigDecimal("7.0"));
+        prescription.setExercise(exercise());
+        return prescription;
+    }
+
+    private User user() {
+        User user = new User();
+        user.setId("11111111-1111-1111-1111-111111111111");
+        user.setUsername("demo");
+        return user;
+    }
+
+    private UserProfile profile() {
+        UserProfile profile = new UserProfile();
+        profile.setId("22222222-2222-2222-2222-222222222222");
+        profile.setUserId("11111111-1111-1111-1111-111111111111");
+        profile.setFitnessLevel(FitnessLevel.BEGINNER);
+        profile.setGoal(Goal.GENERAL_FITNESS);
+        profile.setDaysPerWeek(2);
+        profile.setAvailableEquipment(List.of("body weight"));
+        return profile;
+    }
+
+    private Exercise exercise() {
+        Exercise exercise = new Exercise();
+        exercise.setId("core");
+        exercise.setBodyPart("waist");
+        exercise.setTarget("abs");
+        exercise.setEquipment("body weight");
+        return exercise;
+    }
+}
