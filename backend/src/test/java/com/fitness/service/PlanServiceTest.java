@@ -6,6 +6,7 @@ import com.fitness.domain.FeedbackType;
 import com.fitness.domain.FitnessLevel;
 import com.fitness.domain.Goal;
 import com.fitness.domain.Plan;
+import com.fitness.domain.PlanStatus;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.TrainingDayFocus;
 import com.fitness.domain.Workout;
@@ -14,6 +15,7 @@ import com.fitness.domain.UserProfile;
 import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
@@ -71,14 +73,138 @@ class PlanServiceTest {
         when(planMapper.supersedeActive(active.getId(), 2)).thenReturn(1);
 
         GeneratedPlanResponse response = planService.generatePlan(
-                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 10)));
+                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 5)));
 
         assertThat(response.workoutCount()).isEqualTo(16);
-        assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 10, 4));
+        assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 9, 29));
         verify(planMapper).supersedeActive(active.getId(), 2);
         verify(planMapper).insertPlan(any(Plan.class));
         verify(planMapper, times(16)).insertWorkout(any());
         verify(planMapper, times(80)).insertPrescription(any());
+    }
+
+    @Test
+    void futurePlanIsScheduledWithoutSupersedingActivePlan() {
+        User user = user();
+        UserProfile profile = profile();
+        Plan active = activePlan();
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile);
+        when(exerciseMapper.findGeneratorCandidates(profile.getAvailableEquipment()))
+                .thenReturn(List.of(exercise()));
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+
+        GeneratedPlanResponse response = planService.generatePlan(
+                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 10)));
+
+        assertThat(response.status()).isEqualTo(PlanStatus.SCHEDULED);
+        verify(planMapper, never()).supersedeActive(any(), any(Integer.class));
+    }
+
+    @Test
+    void pausesActivePlanAfterTwoWeeksWithoutCheckIn() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        active.setVersion(3);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findLatestCompletedAt(active.getId()))
+                .thenReturn(LocalDateTime.of(2026, 8, 1, 9, 0));
+        when(planMapper.transitionStatus(
+                active.getId(), PlanStatus.ACTIVE, PlanStatus.PAUSED, 3,
+                LocalDate.of(2026, 8, 15).atStartOfDay())).thenReturn(1);
+
+        PlanLifecycleResponse response = planService.processLifecycle(
+                "demo", LocalDate.of(2026, 8, 15));
+
+        assertThat(response.currentStatus()).isEqualTo(PlanStatus.PAUSED);
+        assertThat(response.changed()).isTrue();
+    }
+
+    @Test
+    void cancelsPausedPlanAfterAnotherTwoWeeks() {
+        User user = user();
+        Plan paused = activePlan();
+        paused.setStatus(PlanStatus.PAUSED);
+        paused.setVersion(4);
+        paused.setStatusChangedAt(LocalDateTime.of(2026, 8, 1, 0, 0));
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(null);
+        when(planMapper.findPausedByUserId(user.getId())).thenReturn(paused);
+        when(planMapper.transitionStatus(
+                paused.getId(), PlanStatus.PAUSED, PlanStatus.CANCELLED, 4,
+                LocalDate.of(2026, 8, 15).atStartOfDay())).thenReturn(1);
+
+        PlanLifecycleResponse response = planService.processLifecycle(
+                "demo", LocalDate.of(2026, 8, 15));
+
+        assertThat(response.currentStatus()).isEqualTo(PlanStatus.CANCELLED);
+    }
+
+    @Test
+    void activatesEarliestScheduledPlanWhenNoCurrentPlanExists() {
+        User user = user();
+        Plan scheduled = activePlan();
+        scheduled.setStatus(PlanStatus.SCHEDULED);
+        scheduled.setVersion(1);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(null);
+        when(planMapper.findPausedByUserId(user.getId())).thenReturn(null);
+        when(planMapper.findNextScheduledByUserId(user.getId(), LocalDate.of(2026, 8, 12)))
+                .thenReturn(scheduled);
+        when(planMapper.transitionStatus(
+                scheduled.getId(), PlanStatus.SCHEDULED, PlanStatus.ACTIVE, 1,
+                LocalDate.of(2026, 8, 12).atStartOfDay())).thenReturn(1);
+
+        PlanLifecycleResponse response = planService.processLifecycle(
+                "demo", LocalDate.of(2026, 8, 12));
+
+        assertThat(response.currentStatus()).isEqualTo(PlanStatus.ACTIVE);
+    }
+
+    @Test
+    void completesExpiredPlanAndCreatesChildRenewal() {
+        User user = user();
+        UserProfile profile = profile();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        active.setVersion(2);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.transitionStatus(
+                active.getId(), PlanStatus.ACTIVE, PlanStatus.COMPLETED, 2,
+                LocalDate.of(2026, 10, 7).atStartOfDay())).thenReturn(1);
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile);
+        when(exerciseMapper.findGeneratorCandidates(profile.getAvailableEquipment()))
+                .thenReturn(List.of(exercise()));
+
+        PlanLifecycleResponse response = planService.processLifecycle(
+                "demo", LocalDate.of(2026, 10, 7));
+
+        assertThat(response.currentStatus()).isEqualTo(PlanStatus.COMPLETED);
+        assertThat(response.childPlanId()).isNotBlank();
+        verify(planMapper).insertPlan(org.mockito.ArgumentMatchers.argThat(plan ->
+                active.getId().equals(plan.getParentPlanId())
+                        && plan.getStatus() == PlanStatus.ACTIVE));
+    }
+
+    @Test
+    void reportsLifecycleConflictWhenOptimisticTransitionLosesRace() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        active.setVersion(5);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findLatestCompletedAt(active.getId())).thenReturn(null);
+        when(planMapper.transitionStatus(
+                active.getId(), PlanStatus.ACTIVE, PlanStatus.PAUSED, 5,
+                LocalDate.of(2026, 9, 1).atStartOfDay())).thenReturn(0);
+
+        assertThatThrownBy(() -> planService.processLifecycle("demo", LocalDate.of(2026, 9, 1)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PLAN_CONFLICT));
     }
 
     @Test

@@ -9,12 +9,19 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
 public interface PlanMapper {
 
     Plan findActiveByUserId(@Param("userId") String userId);
+
+    Plan findPausedByUserId(@Param("userId") String userId);
+
+    Plan findNextScheduledByUserId(@Param("userId") String userId, @Param("date") LocalDate date);
+
+    LocalDateTime findLatestCompletedAt(@Param("planId") String planId);
 
     List<Workout> findWorkoutsByPlanId(@Param("planId") String planId);
 
@@ -64,6 +71,14 @@ public interface PlanMapper {
     );
 
     int supersedeActive(@Param("id") String id, @Param("version") int version);
+
+    int transitionStatus(
+            @Param("id") String id,
+            @Param("expectedStatus") com.fitness.domain.PlanStatus expectedStatus,
+            @Param("newStatus") com.fitness.domain.PlanStatus newStatus,
+            @Param("version") int version,
+            @Param("changedAt") LocalDateTime changedAt
+    );
 
     int insertPlan(Plan plan);
 
