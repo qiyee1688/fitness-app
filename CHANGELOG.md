@@ -579,3 +579,24 @@
 #### 下一步行动
 - [ ] 待办 1
 - [ ] 待办 2
+
+
+## 2026-08-05 会话 18：MVP 主干集成验收
+
+### 主要修改
+
+- 按依赖顺序将 PR #9、#10、#11 合入 main。
+- 将 Exercise body part radio 和 UserProfile equipment checkbox 切换到 Element Plus `value` API。
+- 更新 MVP 集成验收进度。
+
+### 验证
+
+- `mvn test`：40 tests，0 failures，0 errors。
+- `npm run build`：成功。
+- PostgreSQL/Redis 健康，迁移字段和索引存在。
+- 浏览器主路径页面加载正常，修复后不再产生对应弃用告警。
+
+### 下一步行动
+
+- [ ] 合并 MVP 集成验收 PR。
+- [ ] 关闭 MVP PRD issue。
