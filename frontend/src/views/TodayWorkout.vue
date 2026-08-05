@@ -43,24 +43,43 @@
       </section>
 
       <section class="today-prescriptions">
-        <router-link
+        <article
           v-for="prescription in workout.prescriptions"
           :key="prescription.prescriptionId"
           class="today-prescription-card"
-          :to="`/exercises/${prescription.exercise.id}`"
         >
-          <span class="sequence">{{ prescription.sequence }}</span>
-          <span class="exercise-copy">
+          <router-link class="prescription-exercise-link" :to="`/exercises/${prescription.exercise.id}`">
+            <span class="sequence">{{ prescription.sequence }}</span>
+            <span class="exercise-copy">
             <strong>{{ display_exercise_name(prescription.exercise.name, language) }}</strong>
             <small>{{ display_value(prescription.exercise.bodyPart, language) }} · {{ display_value(prescription.exercise.equipment, language) }}</small>
-          </span>
+            </span>
+          </router-link>
           <dl class="prescription-metrics">
             <div><dt>{{ t('sets') }}</dt><dd>{{ prescription.sets }}</dd></div>
             <div><dt>{{ t('reps') }}</dt><dd>{{ prescription.reps }}</dd></div>
             <div><dt>{{ t('rpe') }}</dt><dd>{{ prescription.rpe }}</dd></div>
             <div><dt>{{ t('load') }}</dt><dd>{{ load_label(prescription) }}</dd></div>
           </dl>
-        </router-link>
+          <div class="feedback-controls">
+            <el-select v-model="feedback_types[prescription.prescriptionId]" :placeholder="t('feedback')">
+              <el-option :label="t('tooEasy')" value="TOO_EASY" />
+              <el-option :label="t('justRight')" value="JUST_RIGHT" />
+              <el-option :label="t('tooHard')" value="TOO_HARD" />
+              <el-option :label="t('hurt')" value="HURT" />
+            </el-select>
+            <el-input
+              v-if="feedback_types[prescription.prescriptionId] === 'HURT'"
+              v-model="hurt_body_parts[prescription.prescriptionId]"
+              :placeholder="t('hurtBodyPart')"
+            />
+            <el-button
+              :loading="submitting_feedback === prescription.prescriptionId"
+              :disabled="!can_submit_feedback(prescription)"
+              @click="submit_feedback(prescription)"
+            >{{ t('submitFeedback') }}</el-button>
+          </div>
+        </article>
       </section>
     </template>
   </section>
@@ -70,7 +89,8 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { complete_workout, fetch_today_workout } from '@/api/plan'
+import { ElMessage } from 'element-plus'
+import { complete_workout, fetch_today_workout, submit_exercise_feedback } from '@/api/plan'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 
@@ -85,6 +105,9 @@ const loading = ref(false)
 const no_active_plan = ref(false)
 const rest_day = ref(false)
 const workout = ref(null)
+const feedback_types = ref({})
+const hurt_body_parts = ref({})
+const submitting_feedback = ref('')
 
 async function load_today_workout() {
   loading.value = true
@@ -112,6 +135,33 @@ async function complete_today_workout() {
     error.value = exception.message
   } finally {
     completing.value = false
+  }
+}
+
+function can_submit_feedback(prescription) {
+  const feedback_type = feedback_types.value[prescription.prescriptionId]
+  return feedback_type && (feedback_type !== 'HURT'
+    || hurt_body_parts.value[prescription.prescriptionId]?.trim())
+}
+
+async function submit_feedback(prescription) {
+  submitting_feedback.value = prescription.prescriptionId
+  error.value = ''
+  try {
+    const feedback_type = feedback_types.value[prescription.prescriptionId]
+    const result = await submit_exercise_feedback(workout.value.workoutId, prescription.exercise.id, {
+      feedbackType: feedback_type,
+      hurtBodyPart: feedback_type === 'HURT'
+        ? hurt_body_parts.value[prescription.prescriptionId].trim()
+        : null,
+    })
+    workout.value = result.workout
+    ElMessage.success(result.substituted ? t('exerciseSubstituted')
+      : result.removedForSafety ? t('exerciseRemovedForSafety') : t('feedbackSaved'))
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    submitting_feedback.value = ''
   }
 }
 

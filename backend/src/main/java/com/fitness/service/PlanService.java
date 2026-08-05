@@ -1,15 +1,19 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.ExerciseFeedback;
+import com.fitness.domain.FeedbackType;
 import com.fitness.domain.Plan;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.User;
 import com.fitness.domain.UserProfile;
 import com.fitness.domain.Workout;
 import com.fitness.dto.GeneratePlanRequest;
+import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.ExerciseMapper;
@@ -23,6 +27,8 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -145,6 +151,72 @@ public class PlanService {
 
         LocalDate scheduledDate = plan.getStartDate().plusDays(workout.getDayNumber() - 1L);
         return toTodayWorkoutResponse(plan, workout, scheduledDate, alreadyCompleted);
+    }
+
+    public ExerciseFeedbackResponse submitExerciseFeedback(
+            String username,
+            String workoutId,
+            String exerciseId,
+            SubmitExerciseFeedbackRequest request
+    ) {
+        User user = findUser(username);
+        Plan plan = findActivePlan(user.getId());
+        Workout workout = planMapper.findWorkoutByIdAndPlanId(workoutId, plan.getId());
+        if (workout == null) {
+            throw new BusinessException(ErrorCode.WORKOUT_NOT_FOUND);
+        }
+        Prescription prescription = planMapper.findPrescriptionInWorkout(workoutId, exerciseId);
+        if (prescription == null) {
+            throw new BusinessException(ErrorCode.PRESCRIPTION_NOT_FOUND);
+        }
+
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDate filterUntil = request.feedbackType() == FeedbackType.HURT
+                ? createdAt.toLocalDate().plusWeeks(4)
+                : null;
+        String hurtBodyPart = request.feedbackType() == FeedbackType.HURT
+                ? request.hurtBodyPart().trim().toLowerCase(Locale.ROOT)
+                : null;
+        ExerciseFeedback feedback = new ExerciseFeedback();
+        feedback.setId(UUID.randomUUID().toString());
+        feedback.setWorkoutId(workoutId);
+        feedback.setExerciseId(exerciseId);
+        feedback.setFeedbackType(request.feedbackType() == FeedbackType.HURT
+                ? "HURT_" + hurtBodyPart.toUpperCase(Locale.ROOT).replace(' ', '_')
+                : request.feedbackType().name());
+        feedback.setHurtBodyPart(hurtBodyPart);
+        feedback.setFilterUntil(filterUntil);
+        feedback.setCreatedAt(createdAt);
+        planMapper.insertExerciseFeedback(feedback);
+
+        boolean substituted = false;
+        boolean removedForSafety = false;
+        String replacementExerciseId = null;
+        if (request.feedbackType() == FeedbackType.HURT) {
+            Exercise substitute = planMapper.findSafeSubstitute(
+                    user.getId(), workoutId, exerciseId, hurtBodyPart);
+            int updated;
+            if (substitute != null) {
+                updated = planMapper.replacePrescriptionExercise(
+                        prescription.getId(), substitute.getId(), exerciseId);
+                substituted = updated == 1;
+                replacementExerciseId = substituted ? substitute.getId() : null;
+            } else {
+                updated = planMapper.removePrescriptionForSafety(
+                        prescription.getId(), exerciseId, createdAt);
+                removedForSafety = updated == 1;
+            }
+            if (updated != 1) {
+                throw new BusinessException(ErrorCode.FEEDBACK_CONFLICT);
+            }
+        }
+
+        LocalDate scheduledDate = plan.getStartDate().plusDays(workout.getDayNumber() - 1L);
+        TodayWorkoutResponse todayWorkout = toTodayWorkoutResponse(
+                plan, workout, scheduledDate, workout.getCompletedAt() != null);
+        return new ExerciseFeedbackResponse(
+                feedback.getId(), request.feedbackType(), hurtBodyPart, filterUntil,
+                substituted, removedForSafety, replacementExerciseId, todayWorkout);
     }
 
     private User findUser(String username) {

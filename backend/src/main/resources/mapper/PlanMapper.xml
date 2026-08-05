@@ -47,6 +47,7 @@
             <result property="equipment" column="exercise_equipment"/>
             <result property="gifUrl" column="exercise_gif_url"/>
             <result property="imageUrl" column="exercise_image_url"/>
+            <result property="muscleGroup" column="exercise_muscle_group"/>
         </association>
     </resultMap>
 
@@ -69,11 +70,12 @@
             p.created_at AS prescription_created_at,
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
-            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN workouts w ON w.id = p.workout_id
         JOIN exercises e ON e.id = p.exercise_id
-        WHERE w.plan_id = #{planId}::uuid
+        WHERE w.plan_id = #{planId}::uuid AND p.removed_at IS NULL
         ORDER BY w.day_number, p.sequence
     </select>
 
@@ -97,12 +99,85 @@
             p.created_at AS prescription_created_at,
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
-            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+            e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.muscle_group AS exercise_muscle_group
+        FROM prescriptions p
+        JOIN exercises e ON e.id = p.exercise_id
+        WHERE p.workout_id = #{workoutId}::uuid AND p.removed_at IS NULL
+        ORDER BY p.sequence
+    </select>
+
+    <select id="findPrescriptionInWorkout" resultMap="PrescriptionWithExerciseResultMap">
+        SELECT p.id AS prescription_id, p.workout_id, p.exercise_id, p.sequence,
+               p.sets, p.reps, p.load, p.load_type, p.rpe,
+               p.created_at AS prescription_created_at,
+               e.name AS exercise_name, e.body_part AS exercise_body_part,
+               e.target AS exercise_target, e.equipment AS exercise_equipment,
+               e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+               e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN exercises e ON e.id = p.exercise_id
         WHERE p.workout_id = #{workoutId}::uuid
-        ORDER BY p.sequence
+          AND p.exercise_id = #{exerciseId}
+          AND p.removed_at IS NULL
+        LIMIT 1
     </select>
+
+    <select id="findSafeSubstitute" resultType="com.fitness.domain.Exercise">
+        SELECT e.*
+        FROM exercises e
+        JOIN exercises original ON original.id = #{exerciseId}
+        WHERE e.id != original.id
+          AND LOWER(e.body_part) != LOWER(#{hurtBodyPart})
+          AND (e.equipment = original.equipment OR e.equipment = 'body weight')
+          AND NOT EXISTS (
+              SELECT 1 FROM prescriptions current_p
+              WHERE current_p.workout_id = #{workoutId}::uuid
+                AND current_p.exercise_id = e.id
+                AND current_p.removed_at IS NULL
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM exercise_feedbacks ef
+              JOIN workouts fw ON fw.id = ef.workout_id
+              JOIN plans fp ON fp.id = fw.plan_id
+              JOIN exercises hurt_exercise ON hurt_exercise.id = ef.exercise_id
+              WHERE fp.user_id = #{userId}::uuid
+                AND ef.filter_until >= CURRENT_DATE
+                AND (ef.exercise_id = e.id OR hurt_exercise.muscle_group = e.muscle_group)
+          )
+        ORDER BY CASE
+            WHEN e.target = original.target THEN 0
+            WHEN e.muscle_group = original.muscle_group THEN 1
+            ELSE 2
+        END, e.id
+        LIMIT 1
+    </select>
+
+    <insert id="insertExerciseFeedback" parameterType="com.fitness.domain.ExerciseFeedback">
+        INSERT INTO exercise_feedbacks (
+            id, workout_id, exercise_id, feedback_type, hurt_body_part, filter_until, created_at
+        ) VALUES (
+            #{id}::uuid, #{workoutId}::uuid, #{exerciseId}, #{feedbackType},
+            #{hurtBodyPart}, #{filterUntil}, #{createdAt}
+        )
+    </insert>
+
+    <update id="replacePrescriptionExercise">
+        UPDATE prescriptions
+        SET exercise_id = #{exerciseId}
+        WHERE id = #{prescriptionId}::uuid
+          AND exercise_id = #{expectedExerciseId}
+          AND removed_at IS NULL
+    </update>
+
+    <update id="removePrescriptionForSafety">
+        UPDATE prescriptions
+        SET removed_at = #{removedAt}
+        WHERE id = #{prescriptionId}::uuid
+          AND exercise_id = #{expectedExerciseId}
+          AND removed_at IS NULL
+    </update>
 
     <update id="completeWorkout">
         UPDATE workouts

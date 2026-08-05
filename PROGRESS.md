@@ -12,6 +12,7 @@
 - **切片 2**：✅ 完成（UserProfile API + 前端表单 + 中英文展示）
 - **切片 3**：✅ 完成（Plan Generator + Plan View）
 - **切片 4**：✅ 完成（Today Workout 查询 + 幂等打卡 + 前端视觉 QA）
+- **切片 5**：✅ 完成（ExerciseFeedback + HURT 即时替换 + 4 周安全过滤）
 - **PRD / Issues**：✅ PRD 已发布，implementation issues 已拆分
 
 ---
@@ -53,7 +54,9 @@
 - [x] 实现 ACTIVE Plan 查询、8 周查看页、处方展示和 Exercise 详情跳转
 - [x] 完成 [#6 Today Workout Check-in](https://github.com/qiyee1688/fitness-app/issues/6)
 - [x] 实现当天 Workout 查询、原子幂等打卡、Today 页面和中英文状态展示
-- [ ] 进入 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
+- [x] 完成 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
+- [x] 实现四类 Exercise 反馈、HURT 身体部位记录、即时安全替换/移除和未来 4 周过滤状态
+- [ ] 进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
 
 ### GitHub Issues ✅
 - [x] [#1 PRD: Fitness Coaching App MVP](https://github.com/qiyee1688/fitness-app/issues/1)
@@ -303,3 +306,18 @@
   - 真实 API 首次打卡写入 `2026-08-05T13:55:36.454657`，重复调用返回相同时间
   - 浏览器验证中文“自重 / 按 RPE”、英文“Body weight / RPE only”，并实际跳转 `/exercises/3293`
 - **下一步**：进入 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
+
+### 会话 16：2026-08-05
+- **任务**：完成 [#7 ExerciseFeedback and HURT Substitution](https://github.com/qiyee1688/fitness-app/issues/7)
+- **完成**：
+  - 新增 ExerciseFeedback 领域对象、请求/响应 DTO 和统一反馈 API
+  - 普通反馈只持久化；HURT 保存身体部位和 4 周过滤截止日期
+  - HURT 在 Service 层优先安全替换当前 Prescription，无候选时标记安全移除
+  - 替换/移除使用带原 Exercise 和有效状态条件的参数化更新，冲突返回统一 409 错误码
+  - Today 页面支持 TOO_EASY、JUST_RIGHT、TOO_HARD、HURT 与身体部位输入，并使用返回的 Workout 原位刷新
+- **验证**：
+  - `mvn test` 33/33 通过，`npm run build` 通过
+  - 真实普通反馈落库且 Workout 不变
+  - 真实 HURT 反馈保存为 `HURT_WAIST`，`filter_until=2026-09-02`，并将 Exercise `3293` 替换为 `0690`
+  - 浏览器验证中英文反馈选项、HURT 身体部位输入和页面提交成功提示
+- **下一步**：进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)
