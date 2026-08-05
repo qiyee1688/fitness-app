@@ -2,6 +2,8 @@ package com.fitness.controller;
 
 import com.fitness.domain.PlanStatus;
 import com.fitness.dto.GeneratePlanRequest;
+import com.fitness.dto.ExerciseFeedbackResponse;
+import com.fitness.domain.FeedbackType;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.TodayWorkoutResponse;
@@ -96,6 +98,29 @@ class PlanControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.completedAt").exists());
+    }
+
+    @Test
+    void feedbackReturnsUnifiedEffectResponse() throws Exception {
+        TodayWorkoutResponse workout = new TodayWorkoutResponse(
+                "plan-id", "workout-id", 1, LocalDate.of(2026, 8, 12),
+                com.fitness.domain.TrainingDayFocus.FULL_BODY, null, false, List.of());
+        when(planService.submitExerciseFeedback(
+                org.mockito.ArgumentMatchers.eq("demo"),
+                org.mockito.ArgumentMatchers.eq("workout-id"),
+                org.mockito.ArgumentMatchers.eq("exercise-id"),
+                org.mockito.ArgumentMatchers.any())).thenReturn(new ExerciseFeedbackResponse(
+                        "feedback-id", FeedbackType.HURT, "waist",
+                        LocalDate.of(2026, 9, 2), true, false, "replacement-id", workout));
+
+        mockMvc.perform(post("/plans/workouts/workout-id/exercises/exercise-id/feedback")
+                        .param("username", "demo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"feedbackType\":\"HURT\",\"hurtBodyPart\":\"waist\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.substituted").value(true))
+                .andExpect(jsonPath("$.data.filterUntil").value("2026-09-02"));
     }
 
     @Test

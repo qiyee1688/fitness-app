@@ -45,11 +45,11 @@ Exercise 浏览和详情页作为辅助入口，用来查看 GIF、图片、Targ
 - MVP PRD 已发布为 [#1](https://github.com/qiyee1688/fitness-app/issues/1)。
 - Implementation issues 已拆分为 [#2](https://github.com/qiyee1688/fitness-app/issues/2) 到 [#8](https://github.com/qiyee1688/fitness-app/issues/8)。
 - Plan Generator、Plan View 与 Today Workout 已完成：可查看 8 周安排、打开当天 Workout、完成幂等打卡并跳转 Exercise 详情。
+- ExerciseFeedback 已完成：支持四类反馈，HURT 会记录身体部位、立即替换或安全移除当前动作，并保存未来 4 周过滤状态。
 
 当前优先级：
 
-1. 进入 [#7 ExerciseFeedback](https://github.com/qiyee1688/fitness-app/issues/7)，让训练反馈影响后续安排。
-2. 随后进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)，完善长期 Plan 状态流转。
+1. 进入 [#8 Plan Lifecycle Automation](https://github.com/qiyee1688/fitness-app/issues/8)，完善长期 Plan 状态流转。
 
 ## 4. 开发阶段计划
 

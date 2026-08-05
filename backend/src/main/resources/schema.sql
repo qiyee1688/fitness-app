@@ -125,6 +125,7 @@ CREATE TABLE prescriptions (
     load DECIMAL(5, 2),
     load_type load_type_enum NOT NULL DEFAULT 'BODYWEIGHT',
     rpe DECIMAL(3, 1) CHECK (rpe BETWEEN 6.0 AND 10.0),
+    removed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_prescription_workout FOREIGN KEY (workout_id) REFERENCES workouts(id),
     CONSTRAINT fk_prescription_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id)
@@ -141,6 +142,8 @@ CREATE TABLE exercise_feedbacks (
     workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
     exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
     feedback_type VARCHAR(100) NOT NULL,
+    hurt_body_part VARCHAR(100),
+    filter_until DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_feedback_type CHECK (
         feedback_type IN ('TOO_EASY', 'JUST_RIGHT', 'TOO_HARD')

@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-08-05 会话 16：ExerciseFeedback and HURT Substitution
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/domain/{ExerciseFeedback,FeedbackType}.java`** — Exercise 反馈领域模型
+- **`backend/src/main/java/com/fitness/dto/{SubmitExerciseFeedbackRequest,ExerciseFeedbackResponse}.java`** — 反馈请求与统一响应 DTO
+- **`backend/src/main/resources/migration/20260805_add_feedback_effects.sql`** — HURT 身体部位、4 周过滤截止日期和安全移除字段迁移
+
+### 主要修改
+
+- 新增 `POST /api/plans/workouts/{workoutId}/exercises/{exerciseId}/feedback`。
+- Service 层持久化四类反馈；HURT 立即查找安全替代动作，无候选时将当前 Prescription 标记为安全移除。
+- HURT 保存标准化身体部位与未来 4 周过滤状态，替换候选排除当前 Workout 重复动作和有效期内受伤 Exercise/肌群。
+- Mapper 使用参数化 SQL，并通过 Prescription ID、原 Exercise ID 和 `removed_at IS NULL` 条件保证并发更新安全。
+- Today 页面新增中英文反馈控件、HURT 身体部位输入、提交状态和返回 Workout 原位刷新。
+
+### 验证
+
+- `mvn test`：33 tests 全部通过。
+- `npm run build`：生产构建成功，仅保留既有的大 chunk 警告。
+- 本地 PostgreSQL 迁移成功；真实普通反馈持久化后 Workout 不变。
+- 真实 HURT 反馈保存 `HURT_WAIST` 与 `filter_until=2026-09-02`，并将 Exercise `3293` 原子替换为 `0690`。
+- 浏览器验证中文/English 四类反馈、HURT 身体部位输入和提交成功提示。
+
+### 下一步行动
+
+- [ ] 进入 #8 Plan Lifecycle Automation
+
 ## 2026-08-05 会话 15：Today Workout Check-in
 
 ### 创建的文件

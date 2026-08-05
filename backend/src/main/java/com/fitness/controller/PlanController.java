@@ -2,9 +2,11 @@ package com.fitness.controller;
 
 import com.fitness.dto.ApiResponse;
 import com.fitness.dto.GeneratePlanRequest;
+import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.service.PlanService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -62,6 +64,17 @@ public class PlanController {
             @RequestParam(defaultValue = "demo") @NotBlank String username
     ) {
         return ResponseEntity.ok(ApiResponse.success(planService.completeWorkout(username, workoutId)));
+    }
+
+    @PostMapping("/workouts/{workoutId}/exercises/{exerciseId}/feedback")
+    public ResponseEntity<ApiResponse<ExerciseFeedbackResponse>> submitFeedback(
+            @PathVariable @NotBlank String workoutId,
+            @PathVariable @NotBlank String exerciseId,
+            @RequestParam(defaultValue = "demo") @NotBlank String username,
+            @Valid @RequestBody SubmitExerciseFeedbackRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                planService.submitExerciseFeedback(username, workoutId, exerciseId, request)));
     }
 
 }

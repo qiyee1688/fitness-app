@@ -11,3 +11,7 @@ export function fetch_today_workout(date) {
 export function complete_workout(workout_id) {
   return api_post(`/plans/workouts/${workout_id}/complete`)
 }
+
+export function submit_exercise_feedback(workout_id, exercise_id, feedback) {
+  return api_post(`/plans/workouts/${workout_id}/exercises/${exercise_id}/feedback`, feedback)
+}

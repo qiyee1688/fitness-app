@@ -1,6 +1,8 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.ExerciseFeedback;
+import com.fitness.domain.FeedbackType;
 import com.fitness.domain.FitnessLevel;
 import com.fitness.domain.Goal;
 import com.fitness.domain.Plan;
@@ -13,6 +15,8 @@ import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.dto.ExerciseFeedbackResponse;
+import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.ExerciseMapper;
@@ -212,6 +216,60 @@ class PlanServiceTest {
         assertThat(response.alreadyCompleted()).isTrue();
         assertThat(response.completedAt()).isEqualTo(LocalDateTime.of(2026, 8, 12, 9, 30));
         verify(planMapper, never()).completeWorkout(org.mockito.ArgumentMatchers.anyString(), any(LocalDateTime.class));
+    }
+
+    @Test
+    void hurtFeedbackReplacesUnsafeExerciseAndRecordsFourWeekEffect() {
+        User user = user();
+        Plan active = activePlan();
+        Workout workout = workout(1);
+        Prescription prescription = prescription(workout.getId());
+        Exercise replacement = exercise();
+        replacement.setId("replacement");
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(workout.getId(), active.getId())).thenReturn(workout);
+        when(planMapper.findPrescriptionInWorkout(workout.getId(), "core")).thenReturn(prescription);
+        when(planMapper.findSafeSubstitute(user.getId(), workout.getId(), "core", "waist"))
+                .thenReturn(replacement);
+        when(planMapper.replacePrescriptionExercise(prescription.getId(), "replacement", "core"))
+                .thenReturn(1);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of());
+
+        ExerciseFeedbackResponse response = planService.submitExerciseFeedback(
+                "demo", workout.getId(), "core",
+                new SubmitExerciseFeedbackRequest(FeedbackType.HURT, "Waist"));
+
+        assertThat(response.substituted()).isTrue();
+        assertThat(response.removedForSafety()).isFalse();
+        assertThat(response.replacementExerciseId()).isEqualTo("replacement");
+        assertThat(response.filterUntil()).isAfterOrEqualTo(LocalDate.now().plusWeeks(4));
+        verify(planMapper).insertExerciseFeedback(any(ExerciseFeedback.class));
+    }
+
+    @Test
+    void hurtFeedbackRemovesPrescriptionWhenNoSafeSubstituteExists() {
+        User user = user();
+        Plan active = activePlan();
+        Workout workout = workout(1);
+        Prescription prescription = prescription(workout.getId());
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(workout.getId(), active.getId())).thenReturn(workout);
+        when(planMapper.findPrescriptionInWorkout(workout.getId(), "core")).thenReturn(prescription);
+        when(planMapper.findSafeSubstitute(user.getId(), workout.getId(), "core", "waist"))
+                .thenReturn(null);
+        when(planMapper.removePrescriptionForSafety(
+                org.mockito.ArgumentMatchers.eq(prescription.getId()),
+                org.mockito.ArgumentMatchers.eq("core"), any(LocalDateTime.class))).thenReturn(1);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of());
+
+        ExerciseFeedbackResponse response = planService.submitExerciseFeedback(
+                "demo", workout.getId(), "core",
+                new SubmitExerciseFeedbackRequest(FeedbackType.HURT, "waist"));
+
+        assertThat(response.substituted()).isFalse();
+        assertThat(response.removedForSafety()).isTrue();
     }
 
     private Plan activePlan() {
