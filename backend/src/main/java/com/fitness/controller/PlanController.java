@@ -6,6 +6,8 @@ import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
+import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
+import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.service.PlanService;
@@ -85,6 +87,17 @@ public class PlanController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 planService.submitExerciseFeedback(username, workoutId, exerciseId, request)));
+    }
+
+    @PostMapping("/{planId}/workouts/{workoutId}/replace")
+    public ResponseEntity<ApiResponse<ReplaceWorkoutWithTemplateResponse>> replaceWorkout(
+            @PathVariable @NotBlank String planId,
+            @PathVariable @NotBlank String workoutId,
+            @RequestParam(defaultValue = "demo") @NotBlank String username,
+            @Valid @RequestBody ReplaceWorkoutWithTemplateRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                planService.replaceWorkoutWithTemplate(username, planId, workoutId, request)));
     }
 
 }

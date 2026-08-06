@@ -7,6 +7,7 @@ import com.fitness.domain.FeedbackType;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
+import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.service.PlanService;
 import org.apache.ibatis.annotations.Mapper;
@@ -138,6 +139,28 @@ class PlanControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.substituted").value(true))
                 .andExpect(jsonPath("$.data.filterUntil").value("2026-09-02"));
+    }
+
+    @Test
+    void replaceWorkoutReturnsUnifiedReplacementResponse() throws Exception {
+        PlanDetailResponse.WorkoutDetail workout = new PlanDetailResponse.WorkoutDetail(
+                "replacement-id", 8, 2, LocalDate.of(2026, 8, 19),
+                com.fitness.domain.TrainingDayFocus.FULL_BODY, List.of());
+        when(planService.replaceWorkoutWithTemplate(
+                org.mockito.ArgumentMatchers.eq("demo"),
+                org.mockito.ArgumentMatchers.eq("plan-id"),
+                org.mockito.ArgumentMatchers.eq("workout-id"),
+                org.mockito.ArgumentMatchers.any())).thenReturn(new ReplaceWorkoutWithTemplateResponse(
+                        "plan-id", "workout-id", "replacement-id", 8, workout));
+
+        mockMvc.perform(post("/plans/plan-id/workouts/workout-id/replace")
+                        .param("username", "demo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateId\":\"template-id\",\"expectedPlanVersion\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.originalWorkoutId").value("workout-id"))
+                .andExpect(jsonPath("$.data.replacementWorkoutId").value("replacement-id"));
     }
 
     @Test

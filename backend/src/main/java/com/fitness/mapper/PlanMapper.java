@@ -23,6 +23,8 @@ public interface PlanMapper {
 
     LocalDateTime findLatestCompletedAt(@Param("planId") String planId);
 
+    Plan findOwnedPlanById(@Param("planId") String planId, @Param("userId") String userId);
+
     List<Workout> findWorkoutsByPlanId(@Param("planId") String planId);
 
     List<Prescription> findPrescriptionsByPlanId(@Param("planId") String planId);
@@ -79,6 +81,15 @@ public interface PlanMapper {
             @Param("version") int version,
             @Param("changedAt") LocalDateTime changedAt
     );
+
+    int bumpPlanVersion(
+            @Param("id") String id,
+            @Param("userId") String userId,
+            @Param("expectedStatus") com.fitness.domain.PlanStatus expectedStatus,
+            @Param("expectedVersion") int expectedVersion
+    );
+
+    int markWorkoutReplaced(@Param("id") String id, @Param("planId") String planId);
 
     int insertPlan(Plan plan);
 

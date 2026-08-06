@@ -108,6 +108,7 @@ CREATE TABLE workouts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     plan_id UUID REFERENCES plans(id) ON DELETE CASCADE,
+    replaced_workout_id UUID REFERENCES workouts(id) ON DELETE RESTRICT,
     day_number INT,
     focus training_day_focus_enum,
     requested_body_part on_demand_body_part_enum,
@@ -119,11 +120,13 @@ CREATE TABLE workouts (
     completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_workout_plan FOREIGN KEY (plan_id) REFERENCES plans(id),
-    CONSTRAINT uq_plan_day UNIQUE (plan_id, day_number)
+    CONSTRAINT fk_workout_plan FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
 
 CREATE INDEX idx_workouts_plan_id ON workouts(plan_id);
+CREATE UNIQUE INDEX uq_workouts_active_plan_day
+    ON workouts(plan_id, day_number)
+    WHERE status <> 'REPLACED';
 CREATE INDEX idx_workouts_owner_source_status ON workouts(owner_user_id, source, status);
 CREATE INDEX idx_workouts_expires_at ON workouts(expires_at) WHERE status = 'DRAFT';
 CREATE INDEX idx_workouts_completed_at ON workouts(completed_at);

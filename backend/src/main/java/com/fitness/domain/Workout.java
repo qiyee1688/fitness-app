@@ -10,6 +10,7 @@ public class Workout {
     private String id;
     private String ownerUserId;
     private String planId;
+    private String replacedWorkoutId;
     private int dayNumber;
     private TrainingDayFocus focus;
     private OnDemandBodyPart requestedBodyPart;
