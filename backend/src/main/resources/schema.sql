@@ -95,12 +95,22 @@ CREATE UNIQUE INDEX uq_plans_one_active_per_user
 -- Table: workouts (训练日)
 -- ============================================================
 CREATE TYPE training_day_focus_enum AS ENUM ('PUSH', 'PULL', 'LEGS', 'FULL_BODY');
+CREATE TYPE on_demand_body_part_enum AS ENUM ('CHEST', 'BACK', 'SHOULDERS', 'LEGS', 'WAIST');
+CREATE TYPE workout_source_enum AS ENUM ('PLAN_GENERATED', 'ON_DEMAND', 'TEMPLATE_REPLACEMENT');
+CREATE TYPE workout_status_enum AS ENUM ('DRAFT', 'READY', 'IN_PROGRESS', 'COMPLETED', 'REPLACED');
 
 CREATE TABLE workouts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-    day_number INT NOT NULL,
-    focus training_day_focus_enum NOT NULL,
+    owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id UUID REFERENCES plans(id) ON DELETE CASCADE,
+    day_number INT,
+    focus training_day_focus_enum,
+    requested_body_part on_demand_body_part_enum,
+    equipment_snapshot JSONB,
+    source workout_source_enum NOT NULL DEFAULT 'PLAN_GENERATED',
+    status workout_status_enum NOT NULL DEFAULT 'READY',
+    started_at TIMESTAMP,
+    expires_at TIMESTAMP,
     completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +119,8 @@ CREATE TABLE workouts (
 );
 
 CREATE INDEX idx_workouts_plan_id ON workouts(plan_id);
+CREATE INDEX idx_workouts_owner_source_status ON workouts(owner_user_id, source, status);
+CREATE INDEX idx_workouts_expires_at ON workouts(expires_at) WHERE status = 'DRAFT';
 CREATE INDEX idx_workouts_completed_at ON workouts(completed_at);
 
 -- ============================================================
