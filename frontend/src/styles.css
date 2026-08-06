@@ -311,6 +311,21 @@ h2 {
   gap: 8px;
 }
 
+.detail-backbar {
+  position: sticky;
+  top: 78px;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.detail-back-button {
+  min-width: 112px;
+  box-shadow: 0 8px 20px rgba(36, 53, 43, 0.14);
+  pointer-events: auto;
+}
+
 .detail-layout {
   display: grid;
   grid-template-columns: minmax(280px, 440px) minmax(0, 1fr);
