@@ -5,10 +5,13 @@ import com.fitness.dto.CreateWorkoutTemplateRequest;
 import com.fitness.dto.WorkoutTemplateResponse;
 import com.fitness.service.WorkoutTemplateService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,5 +40,11 @@ public class WorkoutTemplateController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<WorkoutTemplateResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(templateService.list()));
+    }
+
+    @DeleteMapping("/{templateId}")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable @NotBlank String templateId) {
+        templateService.delete(templateId);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

@@ -85,4 +85,9 @@
         WHERE te.template_id = #{templateId}::uuid
         ORDER BY te.sequence
     </select>
+
+    <delete id="deleteOwnedById">
+        DELETE FROM workout_templates
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+    </delete>
 </mapper>

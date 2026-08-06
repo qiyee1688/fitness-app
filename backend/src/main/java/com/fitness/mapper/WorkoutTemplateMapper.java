@@ -18,4 +18,6 @@ public interface WorkoutTemplateMapper {
     List<WorkoutTemplate> findOwnedByUserId(@Param("ownerUserId") String ownerUserId);
 
     List<WorkoutTemplateExercise> findExercisesByTemplateId(@Param("templateId") String templateId);
+
+    int deleteOwnedById(@Param("id") String id, @Param("ownerUserId") String ownerUserId);
 }

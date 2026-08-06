@@ -82,6 +82,19 @@ public class WorkoutTemplateService {
                 .toList();
     }
 
+    @Transactional
+    public void delete(String templateId) {
+        String userId = currentUserProvider.requireUserId();
+        System.out.printf(
+                "Confirm deleting workout template templateId=%s ownerUserId=%s%n",
+                templateId,
+                userId);
+        int deleted = templateMapper.deleteOwnedById(templateId, userId);
+        if (deleted == 0) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+        }
+    }
+
     private WorkoutTemplateExercise toTemplateExercise(String templateId, Prescription prescription) {
         WorkoutTemplateExercise item = new WorkoutTemplateExercise();
         item.setId(UUID.randomUUID().toString());

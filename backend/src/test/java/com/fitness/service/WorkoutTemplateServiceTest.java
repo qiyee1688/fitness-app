@@ -122,6 +122,24 @@ class WorkoutTemplateServiceTest {
         assertThat(responses.getFirst().exercises().getFirst().exercise().id()).isEqualTo("push-up");
     }
 
+    @Test
+    void deletesOwnedTemplate() {
+        when(templateMapper.deleteOwnedById("template-id", "user-id")).thenReturn(1);
+
+        service.delete("template-id");
+
+        verify(templateMapper).deleteOwnedById("template-id", "user-id");
+    }
+
+    @Test
+    void deleteHidesMissingOrForeignTemplateAsNotFound() {
+        when(templateMapper.deleteOwnedById("template-id", "user-id")).thenReturn(0);
+
+        assertThatThrownBy(() -> service.delete("template-id"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
+    }
+
     private Workout workout(WorkoutStatus status) {
         Workout workout = new Workout();
         workout.setId("workout-id");
