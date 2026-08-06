@@ -24,9 +24,11 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -70,8 +72,9 @@ public class OnDemandWorkoutService {
         UserProfile profile = userMapper.findProfileByUserId(userId);
         FitnessLevel level = profile == null ? FitnessLevel.BEGINNER : profile.getFitnessLevel();
         List<String> equipment = resolveEquipment(profile, request.equipment());
-        List<Exercise> candidates = exerciseMapper.findOnDemandCandidates(
-                request.bodyPart().datasetValues(), equipment);
+        List<String> preferredEquipment = resolvePreferredEquipment(request.equipment());
+        List<Exercise> candidates = uniqueCandidates(exerciseMapper.findOnDemandCandidates(
+                request.bodyPart().datasetValues(), equipment, preferredEquipment, userId));
         if (candidates.size() < request.bodyPart().exerciseCount()) {
             throw new BusinessException(ErrorCode.ON_DEMAND_GENERATION_FAILED);
         }
@@ -86,7 +89,8 @@ public class OnDemandWorkoutService {
         workout.setStatus(WorkoutStatus.DRAFT);
         workout.setExpiresAt(now.plusHours(24));
         workout.setPrescriptions(createPrescriptions(
-                workout.getId(), candidates, request.bodyPart().exerciseCount(), level));
+                workout.getId(), selectVariation(candidates, request.bodyPart().exerciseCount(),
+                        request.variation()), level));
 
         workoutMapper.insertWorkout(workout);
         workout.getPrescriptions().forEach(workoutMapper::insertPrescription);
@@ -150,14 +154,40 @@ public class OnDemandWorkoutService {
         return List.copyOf(resolved);
     }
 
+    private List<String> resolvePreferredEquipment(List<String> requested) {
+        if (requested == null) {
+            return List.of();
+        }
+        return requested.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(this::normalize)
+                .filter(value -> !BODYWEIGHT.equals(value))
+                .distinct()
+                .toList();
+    }
+
+    private List<Exercise> uniqueCandidates(List<Exercise> candidates) {
+        Map<String, Exercise> unique = new LinkedHashMap<>();
+        candidates.forEach(exercise -> unique.putIfAbsent(exercise.getId(), exercise));
+        return List.copyOf(unique.values());
+    }
+
+    private List<Exercise> selectVariation(List<Exercise> candidates, int count, int variation) {
+        int start = (int) (((long) variation * count) % candidates.size());
+        List<Exercise> selected = new ArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            selected.add(candidates.get((start + index) % candidates.size()));
+        }
+        return List.copyOf(selected);
+    }
+
     private List<Prescription> createPrescriptions(
             String workoutId,
             List<Exercise> candidates,
-            int count,
             FitnessLevel level
     ) {
-        List<Prescription> prescriptions = new ArrayList<>();
-        for (int index = 0; index < count; index++) {
+        List<Prescription> prescriptions = new ArrayList<>(candidates.size());
+        for (int index = 0; index < candidates.size(); index++) {
             Exercise exercise = candidates.get(index);
             Prescription prescription = new Prescription();
             prescription.setId(UUID.randomUUID().toString());
@@ -204,7 +234,8 @@ public class OnDemandWorkoutService {
                 prescription.getReps(), prescription.getLoad(), prescription.getLoadType(),
                 prescription.getRpe(), new PlanDetailResponse.ExerciseSummary(
                         exercise.getId(), exercise.getName(), exercise.getBodyPart(), exercise.getTarget(),
-                        exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl()));
+                        exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl(),
+                        exercise.getCoachCue(), exercise.getCoachCueEn()));
     }
 
     private String normalize(String value) {

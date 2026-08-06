@@ -53,6 +53,8 @@
             <result property="equipment" column="exercise_equipment"/>
             <result property="gifUrl" column="exercise_gif_url"/>
             <result property="imageUrl" column="exercise_image_url"/>
+            <result property="coachCue" column="exercise_coach_cue"/>
+            <result property="coachCueEn" column="exercise_coach_cue_en"/>
             <result property="muscleGroup" column="exercise_muscle_group"/>
         </association>
     </resultMap>
@@ -100,6 +102,7 @@
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
             e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
             e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN workouts w ON w.id = p.workout_id
@@ -129,6 +132,7 @@
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
             e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
             e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN exercises e ON e.id = p.exercise_id
@@ -143,6 +147,7 @@
                e.name AS exercise_name, e.body_part AS exercise_body_part,
                e.target AS exercise_target, e.equipment AS exercise_equipment,
                e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+               e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
                e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN exercises e ON e.id = p.exercise_id

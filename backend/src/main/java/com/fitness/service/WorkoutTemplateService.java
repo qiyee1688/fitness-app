@@ -1,0 +1,137 @@
+package com.fitness.service;
+
+import com.fitness.domain.Exercise;
+import com.fitness.domain.Prescription;
+import com.fitness.domain.Workout;
+import com.fitness.domain.WorkoutStatus;
+import com.fitness.domain.WorkoutTemplate;
+import com.fitness.domain.WorkoutTemplateExercise;
+import com.fitness.domain.WorkoutTemplateStatus;
+import com.fitness.dto.CreateWorkoutTemplateRequest;
+import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.WorkoutTemplateResponse;
+import com.fitness.exception.BusinessException;
+import com.fitness.exception.ErrorCode;
+import com.fitness.mapper.WorkoutMapper;
+import com.fitness.mapper.WorkoutTemplateMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class WorkoutTemplateService {
+    private static final String DEFAULT_TEMPLATE_NAME = "自定训练模板";
+
+    private final CurrentUserProvider currentUserProvider;
+    private final WorkoutMapper workoutMapper;
+    private final WorkoutTemplateMapper templateMapper;
+
+    public WorkoutTemplateService(
+            CurrentUserProvider currentUserProvider,
+            WorkoutMapper workoutMapper,
+            WorkoutTemplateMapper templateMapper
+    ) {
+        this.currentUserProvider = currentUserProvider;
+        this.workoutMapper = workoutMapper;
+        this.templateMapper = templateMapper;
+    }
+
+    @Transactional
+    public WorkoutTemplateResponse create(CreateWorkoutTemplateRequest request) {
+        String userId = currentUserProvider.requireUserId();
+        Workout workout = workoutMapper.findOwnedById(request.sourceWorkoutId(), userId);
+        if (workout == null) {
+            throw new BusinessException(ErrorCode.ON_DEMAND_WORKOUT_NOT_FOUND);
+        }
+        if (workout.getStatus() != WorkoutStatus.DRAFT) {
+            throw new BusinessException(ErrorCode.WORKOUT_STATE_CONFLICT);
+        }
+
+        List<Prescription> prescriptions = workoutMapper.findPrescriptionsByWorkoutId(workout.getId());
+        if (prescriptions.isEmpty()) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        }
+
+        WorkoutTemplate template = new WorkoutTemplate();
+        template.setId(UUID.randomUUID().toString());
+        template.setOwnerUserId(userId);
+        template.setSourceWorkoutId(workout.getId());
+        template.setName(resolveName(request.name(), workout));
+        template.setBodyPart(workout.getRequestedBodyPart());
+        template.setEquipmentSnapshot(workout.getEquipmentSnapshot());
+        template.setStatus(WorkoutTemplateStatus.ACTIVE);
+        templateMapper.insertTemplate(template);
+
+        List<WorkoutTemplateExercise> items = prescriptions.stream()
+                .map(prescription -> toTemplateExercise(template.getId(), prescription))
+                .toList();
+        items.forEach(templateMapper::insertTemplateExercise);
+        template.setExercises(items);
+
+        return toResponse(template);
+    }
+
+    public List<WorkoutTemplateResponse> list() {
+        String userId = currentUserProvider.requireUserId();
+        return templateMapper.findOwnedByUserId(userId).stream()
+                .peek(template -> template.setExercises(
+                        templateMapper.findExercisesByTemplateId(template.getId())))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private WorkoutTemplateExercise toTemplateExercise(String templateId, Prescription prescription) {
+        WorkoutTemplateExercise item = new WorkoutTemplateExercise();
+        item.setId(UUID.randomUUID().toString());
+        item.setTemplateId(templateId);
+        item.setExerciseId(prescription.getExerciseId());
+        item.setSequence(prescription.getSequence());
+        item.setSets(prescription.getSets());
+        item.setReps(prescription.getReps());
+        item.setLoad(prescription.getLoad());
+        item.setLoadType(prescription.getLoadType());
+        item.setRpe(prescription.getRpe());
+        item.setExercise(prescription.getExercise());
+        return item;
+    }
+
+    private String resolveName(String requestedName, Workout workout) {
+        if (requestedName != null && !requestedName.isBlank()) {
+            return requestedName.trim();
+        }
+        if (workout.getRequestedBodyPart() == null) {
+            return DEFAULT_TEMPLATE_NAME;
+        }
+        return DEFAULT_TEMPLATE_NAME + " - " + workout.getRequestedBodyPart().name();
+    }
+
+    private WorkoutTemplateResponse toResponse(WorkoutTemplate template) {
+        List<PlanDetailResponse.PrescriptionDetail> exercises = template.getExercises() == null
+                ? List.of()
+                : template.getExercises().stream().map(this::toPrescriptionDetail).toList();
+        return new WorkoutTemplateResponse(
+                template.getId(),
+                template.getSourceWorkoutId(),
+                template.getName(),
+                template.getBodyPart(),
+                template.getEquipmentSnapshot(),
+                template.getStatus(),
+                template.getVersion(),
+                template.getCreatedAt(),
+                template.getUpdatedAt(),
+                exercises);
+    }
+
+    private PlanDetailResponse.PrescriptionDetail toPrescriptionDetail(WorkoutTemplateExercise item) {
+        Exercise exercise = item.getExercise();
+        PlanDetailResponse.ExerciseSummary exerciseSummary = new PlanDetailResponse.ExerciseSummary(
+                exercise.getId(), exercise.getName(), exercise.getBodyPart(), exercise.getTarget(),
+                exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl(),
+                exercise.getCoachCue(), exercise.getCoachCueEn());
+        return new PlanDetailResponse.PrescriptionDetail(
+                item.getId(), item.getSequence(), item.getSets(), item.getReps(), item.getLoad(),
+                item.getLoadType(), item.getRpe(), exerciseSummary);
+    }
+}

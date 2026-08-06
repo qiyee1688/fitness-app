@@ -26,6 +26,11 @@
           <el-tag type="info">{{ display_value(exercise.equipment, language) }}</el-tag>
         </div>
 
+        <section v-if="coach_cue" class="exercise-coach-cue">
+          <h2>{{ t('coachCue') }}</h2>
+          <p>{{ coach_cue }}</p>
+        </section>
+
         <dl class="meta-grid">
           <div>
             <dt>{{ t('category') }}</dt>
@@ -99,6 +104,15 @@ const media_source = computed(() => {
 const secondary_muscles = computed(() => {
   const muscles = exercise.value?.secondaryMuscles || []
   return display_list(muscles, language.value)
+})
+
+const coach_cue = computed(() => {
+  if (!exercise.value) {
+    return ''
+  }
+  return language.value === 'zh'
+    ? exercise.value.coachCue || exercise.value.coachCueEn || ''
+    : exercise.value.coachCueEn || exercise.value.coachCue || ''
 })
 
 const steps = computed(() => {

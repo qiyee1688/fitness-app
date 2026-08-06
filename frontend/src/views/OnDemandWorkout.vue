@@ -9,6 +9,13 @@
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+    <el-alert
+      v-if="saved_template"
+      :title="t('templateSaved')"
+      type="success"
+      show-icon
+      :closable="false"
+    />
 
     <section class="on-demand-controls">
       <el-form label-position="top" @submit.prevent>
@@ -55,6 +62,9 @@
               <strong>{{ display_exercise_name(prescription.exercise.name, language) }}</strong>
             </router-link>
             <p>{{ display_value(prescription.exercise.equipment, language) }}</p>
+            <p v-if="coach_cue(prescription.exercise)" class="coach-cue">
+              {{ coach_cue(prescription.exercise) }}
+            </p>
           </div>
           <dl>
             <div><dt>{{ t('sets') }}</dt><dd>{{ prescription.sets }}</dd></div>
@@ -65,6 +75,18 @@
       </div>
 
       <div class="on-demand-actions">
+        <el-button
+          v-if="workout.status === 'DRAFT'"
+          :icon="Refresh"
+          :loading="generating"
+          @click="replace_workout"
+        >{{ t('replaceWorkout') }}</el-button>
+        <el-button
+          v-if="workout.status === 'DRAFT'"
+          :loading="saving_template"
+          :disabled="Boolean(saved_template)"
+          @click="save_template"
+        >{{ saved_template ? t('templateSavedShort') : t('saveAsTemplate') }}</el-button>
         <el-button
           v-if="workout.status === 'DRAFT'"
           type="primary"
@@ -93,11 +115,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { CircleCheck, VideoPlay } from '@element-plus/icons-vue'
+import { CircleCheck, Refresh, VideoPlay } from '@element-plus/icons-vue'
 
 import {
   complete_on_demand_workout,
   generate_on_demand_workout,
+  save_workout_template,
   start_on_demand_workout,
 } from '@/api/workout'
 import { useLanguage } from '@/composables/useLanguage'
@@ -110,7 +133,10 @@ const equipment = ref(['body weight'])
 const error = ref('')
 const generating = ref(false)
 const save_equipment = ref(false)
+const saved_template = ref(null)
+const saving_template = ref(false)
 const transitioning = ref(false)
+const variation = ref(0)
 const workout = ref(null)
 
 const body_part_options = computed(() => [
@@ -131,20 +157,57 @@ const equipment_options = computed(() => [
 ])
 
 async function generate_workout() {
+  variation.value = 0
+  await generate_current_variation()
+}
+
+async function replace_workout() {
+  variation.value += 1
+  await generate_current_variation()
+}
+
+async function generate_current_variation() {
   generating.value = true
   error.value = ''
   workout.value = null
+  saved_template.value = null
   try {
     workout.value = await generate_on_demand_workout({
       bodyPart: body_part.value,
       equipment: equipment.value,
       saveEquipmentToProfile: save_equipment.value,
+      variation: variation.value,
     })
   } catch (exception) {
     error.value = exception.message
   } finally {
     generating.value = false
   }
+}
+
+function coach_cue(exercise) {
+  return language.value === 'zh'
+    ? exercise.coachCue || exercise.coachCueEn || ''
+    : exercise.coachCueEn || exercise.coachCue || ''
+}
+
+async function save_template() {
+  saving_template.value = true
+  error.value = ''
+  try {
+    saved_template.value = await save_workout_template({
+      sourceWorkoutId: workout.value.workoutId,
+      name: template_name(),
+    })
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    saving_template.value = false
+  }
+}
+
+function template_name() {
+  return `${t('customTemplateName')} - ${body_part_label(workout.value.bodyPart)}`
 }
 
 async function start_workout() {

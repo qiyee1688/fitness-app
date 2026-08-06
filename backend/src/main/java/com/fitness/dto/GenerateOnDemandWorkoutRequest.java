@@ -3,12 +3,14 @@ package com.fitness.dto;
 import com.fitness.domain.OnDemandBodyPart;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
 
 import java.util.List;
 
 public record GenerateOnDemandWorkoutRequest(
         @NotNull OnDemandBodyPart bodyPart,
         List<@NotBlank String> equipment,
-        boolean saveEquipmentToProfile
+        boolean saveEquipmentToProfile,
+        @Min(0) int variation
 ) {
 }
