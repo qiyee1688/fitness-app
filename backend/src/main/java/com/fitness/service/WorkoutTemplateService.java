@@ -9,6 +9,7 @@ import com.fitness.domain.WorkoutTemplateExercise;
 import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
 import com.fitness.dto.PlanDetailResponse;
+import com.fitness.dto.UpdateWorkoutTemplateRequest;
 import com.fitness.dto.WorkoutTemplateResponse;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
@@ -18,7 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class WorkoutTemplateService {
@@ -83,6 +87,44 @@ public class WorkoutTemplateService {
     }
 
     @Transactional
+    public WorkoutTemplateResponse update(String templateId, UpdateWorkoutTemplateRequest request) {
+        String userId = currentUserProvider.requireUserId();
+        WorkoutTemplate template = templateMapper.findOwnedById(templateId, userId);
+        if (template == null) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+        }
+
+        List<WorkoutTemplateExercise> existingItems = templateMapper.findExercisesByTemplateId(templateId);
+        validatePrescriptionUpdates(template, existingItems, request.exercises());
+
+        System.out.printf(
+                "Confirm updating workout template templateId=%s ownerUserId=%s expectedVersion=%d itemCount=%d%n",
+                templateId,
+                userId,
+                request.expectedVersion(),
+                request.exercises().size());
+        int updated = templateMapper.updateOwnedTemplate(
+                templateId,
+                userId,
+                request.expectedVersion(),
+                request.name().trim());
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_CONFLICT);
+        }
+
+        for (UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate exercise : request.exercises()) {
+            int itemUpdated = templateMapper.updateTemplateExercisePrescription(templateId, userId, exercise);
+            if (itemUpdated == 0) {
+                throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+            }
+        }
+
+        WorkoutTemplate refreshed = templateMapper.findOwnedById(templateId, userId);
+        refreshed.setExercises(templateMapper.findExercisesByTemplateId(templateId));
+        return toResponse(refreshed);
+    }
+
+    @Transactional
     public void delete(String templateId) {
         String userId = currentUserProvider.requireUserId();
         System.out.printf(
@@ -93,6 +135,45 @@ public class WorkoutTemplateService {
         if (deleted == 0) {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
         }
+    }
+
+    private void validatePrescriptionUpdates(
+            WorkoutTemplate template,
+            List<WorkoutTemplateExercise> existingItems,
+            List<UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate> updates
+    ) {
+        int minimumExerciseCount = minimumExerciseCount(template);
+        if (updates.size() < minimumExerciseCount || updates.size() != existingItems.size()) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        }
+
+        Map<String, WorkoutTemplateExercise> existingById = existingItems.stream()
+                .collect(Collectors.toMap(WorkoutTemplateExercise::getId, Function.identity()));
+        long distinctSequenceCount = updates.stream()
+                .map(UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate::sequence)
+                .distinct()
+                .count();
+        if (distinctSequenceCount != updates.size()) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        }
+
+        for (UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate update : updates) {
+            WorkoutTemplateExercise existing = existingById.get(update.templateExerciseId());
+            if (existing == null) {
+                throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+            }
+            if (!existing.getLoadType().equals(update.loadType()) && update.load() == null) {
+                throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+            }
+        }
+    }
+
+    private int minimumExerciseCount(WorkoutTemplate template) {
+        return switch (template.getBodyPart()) {
+            case CHEST, BACK, SHOULDERS -> 3;
+            case LEGS -> 4;
+            case WAIST -> 2;
+        };
     }
 
     private WorkoutTemplateExercise toTemplateExercise(String templateId, Prescription prescription) {

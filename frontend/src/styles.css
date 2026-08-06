@@ -249,6 +249,12 @@ h2 {
   gap: 16px;
 }
 
+.template-title-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .template-prescriptions {
   display: grid;
   border: 1px solid #e7ebe5;
@@ -324,6 +330,10 @@ h2 {
 .template-prescription dd {
   margin: 2px 0 0;
   font-weight: 750;
+}
+
+.template-prescription .el-input-number {
+  width: 78px;
 }
 
 .profile-form {

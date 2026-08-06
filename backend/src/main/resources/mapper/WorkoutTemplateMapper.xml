@@ -90,4 +90,29 @@
         DELETE FROM workout_templates
         WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
     </delete>
+
+    <update id="updateOwnedTemplate">
+        UPDATE workout_templates
+        SET name = #{name},
+            version = version + 1
+        WHERE id = #{id}::uuid
+          AND owner_user_id = #{ownerUserId}::uuid
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="updateTemplateExercisePrescription">
+        UPDATE workout_template_exercises te
+        SET sequence = #{exercise.sequence},
+            sets = #{exercise.sets},
+            reps = #{exercise.reps},
+            load = #{exercise.load},
+            load_type = #{exercise.loadType}::load_type_enum,
+            rpe = #{exercise.rpe}
+        WHERE te.id = #{exercise.templateExerciseId}::uuid
+          AND te.template_id = #{templateId}::uuid
+          AND EXISTS (
+              SELECT 1 FROM workout_templates wt
+              WHERE wt.id = te.template_id AND wt.owner_user_id = #{ownerUserId}::uuid
+          )
+    </update>
 </mapper>

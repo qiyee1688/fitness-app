@@ -10,6 +10,7 @@ import com.fitness.domain.WorkoutTemplate;
 import com.fitness.domain.WorkoutTemplateExercise;
 import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
+import com.fitness.dto.UpdateWorkoutTemplateRequest;
 import com.fitness.dto.WorkoutTemplateResponse;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
@@ -25,6 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -140,6 +142,95 @@ class WorkoutTemplateServiceTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
     }
 
+    @Test
+    void updatesTemplateNameAndPrescriptionSnapshotWithOptimisticLock() {
+        WorkoutTemplate template = template();
+        List<WorkoutTemplateExercise> existingItems = List.of(
+                templateExercise("item-1", 1),
+                templateExercise("item-2", 2),
+                templateExercise("item-3", 3));
+        when(templateMapper.findOwnedById("template-id", "user-id"))
+                .thenReturn(template)
+                .thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId("template-id"))
+                .thenReturn(existingItems)
+                .thenReturn(existingItems);
+        when(templateMapper.updateOwnedTemplate("template-id", "user-id", 0, "Edited template"))
+                .thenReturn(1);
+        when(templateMapper.updateTemplateExercisePrescription(any(), any(), any()))
+                .thenReturn(1);
+
+        WorkoutTemplateResponse response = service.update("template-id", updateRequest());
+
+        verify(templateMapper).updateOwnedTemplate("template-id", "user-id", 0, "Edited template");
+        verify(templateMapper).updateTemplateExercisePrescription(
+                "template-id", "user-id", updateRequest().exercises().getFirst());
+        assertThat(response.templateId()).isEqualTo("template-id");
+        assertThat(response.exercises()).hasSize(3);
+    }
+
+    @Test
+    void rejectsTemplateUpdateWhenVersionChanged() {
+        WorkoutTemplate template = template();
+        when(templateMapper.findOwnedById("template-id", "user-id")).thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId("template-id")).thenReturn(List.of(
+                templateExercise("item-1", 1),
+                templateExercise("item-2", 2),
+                templateExercise("item-3", 3)));
+        when(templateMapper.updateOwnedTemplate("template-id", "user-id", 0, "Edited template"))
+                .thenReturn(0);
+
+        assertThatThrownBy(() -> service.update("template-id", updateRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_CONFLICT));
+    }
+
+    @Test
+    void rejectsTemplateUpdateForUnknownTemplateExercise() {
+        WorkoutTemplate template = template();
+        when(templateMapper.findOwnedById("template-id", "user-id")).thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId("template-id")).thenReturn(List.of(
+                templateExercise("other-1", 1),
+                templateExercise("other-2", 2),
+                templateExercise("other-3", 3)));
+
+        assertThatThrownBy(() -> service.update("template-id", updateRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
+        verify(templateMapper, never()).updateOwnedTemplate(any(), any(), anyInt(), any());
+    }
+
+    private UpdateWorkoutTemplateRequest updateRequest() {
+        return new UpdateWorkoutTemplateRequest(0, " Edited template ", List.of(
+                updateItem("item-1", 1),
+                updateItem("item-2", 2),
+                updateItem("item-3", 3)));
+    }
+
+    private UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate updateItem(String id, int sequence) {
+        return new UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate(
+                id,
+                sequence,
+                4,
+                10,
+                null,
+                LoadType.BODYWEIGHT,
+                new BigDecimal("8.0"));
+    }
+
+    private WorkoutTemplate template() {
+        WorkoutTemplate template = new WorkoutTemplate();
+        template.setId("template-id");
+        template.setOwnerUserId("user-id");
+        template.setSourceWorkoutId("workout-id");
+        template.setName("Saved chest");
+        template.setBodyPart(OnDemandBodyPart.CHEST);
+        template.setEquipmentSnapshot(List.of("body weight"));
+        template.setStatus(WorkoutTemplateStatus.ACTIVE);
+        template.setVersion(0);
+        return template;
+    }
+
     private Workout workout(WorkoutStatus status) {
         Workout workout = new Workout();
         workout.setId("workout-id");
@@ -165,11 +256,15 @@ class WorkoutTemplateServiceTest {
     }
 
     private WorkoutTemplateExercise templateExercise() {
+        return templateExercise("template-exercise-id", 1);
+    }
+
+    private WorkoutTemplateExercise templateExercise(String id, int sequence) {
         WorkoutTemplateExercise item = new WorkoutTemplateExercise();
-        item.setId("template-exercise-id");
+        item.setId(id);
         item.setTemplateId("template-id");
         item.setExerciseId("push-up");
-        item.setSequence(1);
+        item.setSequence(sequence);
         item.setSets(3);
         item.setReps(12);
         item.setLoadType(LoadType.BODYWEIGHT);

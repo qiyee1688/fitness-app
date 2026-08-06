@@ -23,6 +23,7 @@ public enum ErrorCode {
     PLAN_CONFLICT(40901, "Plan was changed concurrently; please retry", HttpStatus.CONFLICT),
     FEEDBACK_CONFLICT(40902, "Workout changed while applying feedback; please retry", HttpStatus.CONFLICT),
     WORKOUT_STATE_CONFLICT(40903, "Workout state changed; please refresh", HttpStatus.CONFLICT),
+    WORKOUT_TEMPLATE_CONFLICT(40904, "Workout template changed; please refresh", HttpStatus.CONFLICT),
     INTERNAL_ERROR(500, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

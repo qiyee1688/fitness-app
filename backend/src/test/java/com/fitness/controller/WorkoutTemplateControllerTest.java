@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,6 +64,59 @@ class WorkoutTemplateControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"sourceWorkoutId":" "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void updateReturnsUnifiedTemplateResponse() throws Exception {
+        when(service.update(any(), any())).thenReturn(response());
+
+        mockMvc.perform(patch("/workout-templates/template-id")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedVersion": 0,
+                                  "name": "Edited template",
+                                  "exercises": [
+                                    {
+                                      "templateExerciseId": "template-exercise-id",
+                                      "sequence": 1,
+                                      "sets": 4,
+                                      "reps": 10,
+                                      "load": null,
+                                      "loadType": "BODYWEIGHT",
+                                      "rpe": 8.0
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.templateId").value("template-id"));
+        verify(service).update(any(), any());
+    }
+
+    @Test
+    void updateRejectsBlankName() throws Exception {
+        mockMvc.perform(patch("/workout-templates/template-id")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedVersion": 0,
+                                  "name": " ",
+                                  "exercises": [
+                                    {
+                                      "templateExerciseId": "template-exercise-id",
+                                      "sequence": 1,
+                                      "sets": 4,
+                                      "reps": 10,
+                                      "loadType": "BODYWEIGHT",
+                                      "rpe": 8.0
+                                    }
+                                  ]
+                                }
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));

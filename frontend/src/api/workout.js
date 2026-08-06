@@ -1,4 +1,4 @@
-import { api_delete, api_get, api_post } from './http'
+import { api_delete, api_get, api_patch, api_post } from './http'
 
 export function generate_on_demand_workout(payload) {
   return api_post('/workouts/on-demand', payload)
@@ -23,4 +23,8 @@ export function fetch_workout_templates() {
 
 export function delete_workout_template(template_id) {
   return api_delete(`/workout-templates/${template_id}`)
+}
+
+export function update_workout_template(template_id, payload) {
+  return api_patch(`/workout-templates/${template_id}`, payload)
 }
