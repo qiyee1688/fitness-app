@@ -9,6 +9,13 @@
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+    <el-alert
+      v-if="saved_template"
+      :title="t('templateSaved')"
+      type="success"
+      show-icon
+      :closable="false"
+    />
 
     <section class="on-demand-controls">
       <el-form label-position="top" @submit.prevent>
@@ -51,7 +58,7 @@
         <article v-for="prescription in workout.prescriptions" :key="prescription.prescriptionId" class="on-demand-prescription">
           <span class="sequence">{{ prescription.sequence }}</span>
           <div>
-            <router-link :to="`/exercises/${prescription.exercise.id}`">
+            <router-link :to="exercise_detail_link(prescription.exercise.id)">
               <strong>{{ display_exercise_name(prescription.exercise.name, language) }}</strong>
             </router-link>
             <p>{{ display_value(prescription.exercise.equipment, language) }}</p>
@@ -65,6 +72,12 @@
       </div>
 
       <div class="on-demand-actions">
+        <el-button
+          v-if="workout.status === 'DRAFT'"
+          :loading="saving_template"
+          :disabled="Boolean(saved_template)"
+          @click="save_template"
+        >{{ saved_template ? t('templateSavedShort') : t('saveAsTemplate') }}</el-button>
         <el-button
           v-if="workout.status === 'DRAFT'"
           type="primary"
@@ -92,17 +105,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { CircleCheck, VideoPlay } from '@element-plus/icons-vue'
 
 import {
   complete_on_demand_workout,
   generate_on_demand_workout,
+  save_workout_template,
   start_on_demand_workout,
 } from '@/api/workout'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 import { fetch_user_profile } from '@/api/user'
+
+const ON_DEMAND_CACHE_KEY = 'fitness:on-demand-workout:last-result'
 
 const { language, t } = useLanguage()
 const body_part = ref('CHEST')
@@ -110,6 +126,8 @@ const equipment = ref(['body weight'])
 const error = ref('')
 const generating = ref(false)
 const save_equipment = ref(false)
+const saved_template = ref(null)
+const saving_template = ref(false)
 const transitioning = ref(false)
 const workout = ref(null)
 
@@ -134,17 +152,40 @@ async function generate_workout() {
   generating.value = true
   error.value = ''
   workout.value = null
+  saved_template.value = null
+  persist_cached_workout()
   try {
     workout.value = await generate_on_demand_workout({
       bodyPart: body_part.value,
       equipment: equipment.value,
       saveEquipmentToProfile: save_equipment.value,
     })
+    persist_cached_workout()
   } catch (exception) {
     error.value = exception.message
   } finally {
     generating.value = false
   }
+}
+
+async function save_template() {
+  saving_template.value = true
+  error.value = ''
+  try {
+    saved_template.value = await save_workout_template({
+      sourceWorkoutId: workout.value.workoutId,
+      name: template_name(),
+    })
+    persist_cached_workout()
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    saving_template.value = false
+  }
+}
+
+function template_name() {
+  return `${t('customTemplateName')} - ${body_part_label(workout.value.bodyPart)}`
 }
 
 async function start_workout() {
@@ -160,10 +201,68 @@ async function transition(action) {
   error.value = ''
   try {
     workout.value = await action()
+    persist_cached_workout()
   } catch (exception) {
     error.value = exception.message
   } finally {
     transitioning.value = false
+  }
+}
+
+function exercise_detail_link(exercise_id) {
+  persist_cached_workout()
+  return {
+    name: 'exercise-detail',
+    params: { id: exercise_id },
+    query: { from: 'on-demand' },
+  }
+}
+
+function persist_cached_workout() {
+  if (typeof sessionStorage === 'undefined') {
+    return
+  }
+
+  if (!workout.value) {
+    sessionStorage.removeItem(ON_DEMAND_CACHE_KEY)
+    return
+  }
+
+  sessionStorage.setItem(ON_DEMAND_CACHE_KEY, JSON.stringify({
+    bodyPart: body_part.value,
+    equipment: equipment.value,
+    saveEquipmentToProfile: save_equipment.value,
+    workout: workout.value,
+    savedTemplate: saved_template.value,
+  }))
+}
+
+function restore_cached_workout() {
+  if (typeof sessionStorage === 'undefined') {
+    return false
+  }
+
+  const cached = sessionStorage.getItem(ON_DEMAND_CACHE_KEY)
+  if (!cached) {
+    return false
+  }
+
+  try {
+    const parsed = JSON.parse(cached)
+    if (!parsed?.workout?.workoutId) {
+      return false
+    }
+    body_part.value = parsed.bodyPart || body_part.value
+    equipment.value = Array.isArray(parsed.equipment) && parsed.equipment.length
+      ? parsed.equipment
+      : equipment.value
+    save_equipment.value = Boolean(parsed.saveEquipmentToProfile)
+    workout.value = parsed.workout
+    saved_template.value = parsed.savedTemplate || null
+    return true
+  } catch {
+    sessionStorage.removeItem(ON_DEMAND_CACHE_KEY)
+    return false
   }
 }
 
@@ -181,6 +280,10 @@ function status_type(value) {
 }
 
 async function load_profile_equipment() {
+  if (restore_cached_workout()) {
+    return
+  }
+
   try {
     const profile = await fetch_user_profile('demo')
     equipment.value = [...new Set(['body weight', ...(profile.availableEquipment || [])])]
@@ -188,6 +291,13 @@ async function load_profile_equipment() {
     equipment.value = ['body weight']
   }
 }
+
+watch([body_part, equipment, save_equipment], () => {
+  if (!workout.value) {
+    return
+  }
+  persist_cached_workout()
+}, { deep: true })
 
 onMounted(load_profile_equipment)
 </script>

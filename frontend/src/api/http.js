@@ -41,3 +41,19 @@ export async function api_post(path, body = {}) {
 
   return payload.data
 }
+
+export async function api_delete(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'DELETE',
+  })
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok || payload?.code !== 0) {
+    const error = new Error(payload?.message || 'Request failed')
+    error.code = payload?.code
+    error.status = response.status
+    throw error
+  }
+
+  return payload.data
+}
