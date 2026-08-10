@@ -47,7 +47,20 @@ public record PlanDetailResponse(
             String target,
             String equipment,
             String gifUrl,
-            String imageUrl
+            String imageUrl,
+            String coachCue,
+            String coachCueEn
     ) {
+        public ExerciseSummary(
+                String id,
+                String name,
+                String bodyPart,
+                String target,
+                String equipment,
+                String gifUrl,
+                String imageUrl
+        ) {
+            this(id, name, bodyPart, target, equipment, gifUrl, imageUrl, null, null);
+        }
     }
 }

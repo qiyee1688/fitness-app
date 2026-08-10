@@ -251,6 +251,29 @@ h2 {
   font-size: 13px;
 }
 
+.on-demand-prescription .coach-cue {
+  max-width: 56ch;
+  color: #314d3a;
+  line-height: 1.5;
+}
+
+.exercise-coach-cue {
+  margin-top: 20px;
+  border-left: 3px solid #40916c;
+  padding: 2px 0 2px 14px;
+}
+
+.exercise-coach-cue h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.exercise-coach-cue p {
+  margin: 0;
+  color: #314d3a;
+  line-height: 1.6;
+}
+
 .on-demand-prescription dl {
   display: grid;
   grid-template-columns: repeat(3, 52px);

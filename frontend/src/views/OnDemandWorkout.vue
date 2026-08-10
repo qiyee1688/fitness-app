@@ -9,7 +9,6 @@
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
-
     <section class="on-demand-controls">
       <el-form label-position="top" @submit.prevent>
         <el-form-item :label="t('trainingBodyPart')">
@@ -55,6 +54,9 @@
               <strong>{{ display_exercise_name(prescription.exercise.name, language) }}</strong>
             </router-link>
             <p>{{ display_value(prescription.exercise.equipment, language) }}</p>
+            <p v-if="coach_cue(prescription.exercise)" class="coach-cue">
+              {{ coach_cue(prescription.exercise) }}
+            </p>
           </div>
           <dl>
             <div><dt>{{ t('sets') }}</dt><dd>{{ prescription.sets }}</dd></div>
@@ -65,6 +67,12 @@
       </div>
 
       <div class="on-demand-actions">
+        <el-button
+          v-if="workout.status === 'DRAFT'"
+          :icon="Refresh"
+          :loading="generating"
+          @click="replace_workout"
+        >{{ t('replaceWorkout') }}</el-button>
         <el-button
           v-if="workout.status === 'DRAFT'"
           type="primary"
@@ -93,7 +101,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { CircleCheck, VideoPlay } from '@element-plus/icons-vue'
+import { CircleCheck, Refresh, VideoPlay } from '@element-plus/icons-vue'
 
 import {
   complete_on_demand_workout,
@@ -111,6 +119,7 @@ const error = ref('')
 const generating = ref(false)
 const save_equipment = ref(false)
 const transitioning = ref(false)
+const variation = ref(0)
 const workout = ref(null)
 
 const body_part_options = computed(() => [
@@ -131,6 +140,16 @@ const equipment_options = computed(() => [
 ])
 
 async function generate_workout() {
+  variation.value = 0
+  await generate_current_variation()
+}
+
+async function replace_workout() {
+  variation.value += 1
+  await generate_current_variation()
+}
+
+async function generate_current_variation() {
   generating.value = true
   error.value = ''
   workout.value = null
@@ -139,12 +158,19 @@ async function generate_workout() {
       bodyPart: body_part.value,
       equipment: equipment.value,
       saveEquipmentToProfile: save_equipment.value,
+      variation: variation.value,
     })
   } catch (exception) {
     error.value = exception.message
   } finally {
     generating.value = false
   }
+}
+
+function coach_cue(exercise) {
+  return language.value === 'zh'
+    ? exercise.coachCue || exercise.coachCueEn || ''
+    : exercise.coachCueEn || exercise.coachCue || ''
 }
 
 async function start_workout() {

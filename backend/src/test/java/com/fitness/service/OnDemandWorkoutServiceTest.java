@@ -28,8 +28,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,11 +61,11 @@ class OnDemandWorkoutServiceTest {
     void generatesRequiredExerciseCountForEveryBodyPart(OnDemandBodyPart bodyPart) {
         UserProfile profile = profile(FitnessLevel.BEGINNER);
         when(userMapper.findProfileByUserId("user-id")).thenReturn(profile);
-        when(exerciseMapper.findOnDemandCandidates(any(), any()))
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
                 .thenReturn(exercises(bodyPart.exerciseCount(), "dumbbell"));
 
         OnDemandWorkoutResponse response = service.generate(
-                new GenerateOnDemandWorkoutRequest(bodyPart, List.of("dumbbell"), false));
+                new GenerateOnDemandWorkoutRequest(bodyPart, List.of("dumbbell"), false, 0));
 
         assertThat(response.prescriptions()).hasSize(bodyPart.exerciseCount());
         assertThat(response.status()).isEqualTo(WorkoutStatus.DRAFT);
@@ -76,10 +78,11 @@ class OnDemandWorkoutServiceTest {
     @EnumSource(FitnessLevel.class)
     void appliesPrescriptionForFitnessLevel(FitnessLevel level) {
         when(userMapper.findProfileByUserId("user-id")).thenReturn(profile(level));
-        when(exerciseMapper.findOnDemandCandidates(any(), any())).thenReturn(exercises(4, "dumbbell"));
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
+                .thenReturn(exercises(4, "dumbbell"));
 
         var prescription = service.generate(new GenerateOnDemandWorkoutRequest(
-                OnDemandBodyPart.CHEST, List.of(), false)).prescriptions().getFirst();
+                OnDemandBodyPart.CHEST, List.of(), false, 0)).prescriptions().getFirst();
 
         switch (level) {
             case BEGINNER -> assertThat(prescription).extracting("sets", "reps", "rpe")
@@ -93,10 +96,11 @@ class OnDemandWorkoutServiceTest {
 
     @Test
     void usesBeginnerAndBodyweightWithoutProfile() {
-        when(exerciseMapper.findOnDemandCandidates(any(), any())).thenReturn(exercises(3, "body weight"));
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
+                .thenReturn(exercises(3, "body weight"));
 
         OnDemandWorkoutResponse response = service.generate(new GenerateOnDemandWorkoutRequest(
-                OnDemandBodyPart.WAIST, null, false));
+                OnDemandBodyPart.WAIST, null, false, 0));
 
         assertThat(response.equipment()).containsExactly("body weight");
         assertThat(response.prescriptions()).allSatisfy(prescription -> {
@@ -108,13 +112,58 @@ class OnDemandWorkoutServiceTest {
     @Test
     void rejectsIncompleteWorkoutBeforePersistence() {
         when(userMapper.findProfileByUserId("user-id")).thenReturn(profile(FitnessLevel.BEGINNER));
-        when(exerciseMapper.findOnDemandCandidates(any(), any())).thenReturn(exercises(3, "dumbbell"));
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
+                .thenReturn(exercises(3, "dumbbell"));
 
         assertThatThrownBy(() -> service.generate(new GenerateOnDemandWorkoutRequest(
-                OnDemandBodyPart.CHEST, List.of("dumbbell"), false)))
+                OnDemandBodyPart.CHEST, List.of("dumbbell"), false, 0)))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ON_DEMAND_GENERATION_FAILED));
         verify(workoutMapper, never()).insertWorkout(any());
+    }
+
+    @Test
+    void returnsStableNonRepeatingVariationWithCoachCues() {
+        when(userMapper.findProfileByUserId("user-id")).thenReturn(profile(FitnessLevel.BEGINNER));
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
+                .thenReturn(exercises(9, "dumbbell"));
+
+        GenerateOnDemandWorkoutRequest original = new GenerateOnDemandWorkoutRequest(
+                OnDemandBodyPart.CHEST, List.of("dumbbell"), false, 0);
+        GenerateOnDemandWorkoutRequest replacement = new GenerateOnDemandWorkoutRequest(
+                OnDemandBodyPart.CHEST, List.of("dumbbell"), false, 1);
+
+        OnDemandWorkoutResponse first = service.generate(original);
+        OnDemandWorkoutResponse repeated = service.generate(original);
+        OnDemandWorkoutResponse varied = service.generate(replacement);
+
+        assertThat(exerciseIds(first))
+                .containsExactly("exercise-0", "exercise-1", "exercise-2", "exercise-3")
+                .containsExactlyElementsOf(exerciseIds(repeated));
+        assertThat(exerciseIds(varied))
+                .containsExactly("exercise-4", "exercise-5", "exercise-6", "exercise-7");
+        assertThat(exerciseIds(varied)).doesNotHaveDuplicates();
+        assertThat(first.prescriptions().getFirst().exercise())
+                .extracting("coachCue", "coachCueEn")
+                .containsExactly("提示 0", "Cue 0");
+        verify(exerciseMapper, times(3)).findOnDemandCandidates(
+                eq(OnDemandBodyPart.CHEST.datasetValues()),
+                eq(List.of("body weight", "dumbbell")),
+                eq(List.of("dumbbell")),
+                eq("user-id"));
+    }
+
+    @Test
+    void removesDuplicateCandidatesBeforeSelectingVariation() {
+        when(userMapper.findProfileByUserId("user-id")).thenReturn(profile(FitnessLevel.BEGINNER));
+        List<Exercise> candidates = new ArrayList<>(exercises(5, "dumbbell"));
+        candidates.add(candidates.getFirst());
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any())).thenReturn(candidates);
+
+        OnDemandWorkoutResponse response = service.generate(new GenerateOnDemandWorkoutRequest(
+                OnDemandBodyPart.CHEST, List.of("dumbbell"), false, 1));
+
+        assertThat(exerciseIds(response)).doesNotHaveDuplicates();
     }
 
     @Test
@@ -179,8 +228,16 @@ class OnDemandWorkoutServiceTest {
             exercise.setBodyPart("chest");
             exercise.setTarget("target");
             exercise.setEquipment(equipment);
+            exercise.setCoachCue("提示 " + index);
+            exercise.setCoachCueEn("Cue " + index);
             exercises.add(exercise);
         }
         return exercises;
+    }
+
+    private List<String> exerciseIds(OnDemandWorkoutResponse response) {
+        return response.prescriptions().stream()
+                .map(prescription -> prescription.exercise().id())
+                .toList();
     }
 }
