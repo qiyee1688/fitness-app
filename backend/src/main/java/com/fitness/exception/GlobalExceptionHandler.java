@@ -22,7 +22,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleValidationException(Exception exception) {
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(ErrorCode.INVALID_REQUEST.getCode(), exception.getMessage()));
+                .body(ApiResponse.error(
+                        ErrorCode.INVALID_REQUEST.getCode(), ErrorCode.INVALID_REQUEST.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

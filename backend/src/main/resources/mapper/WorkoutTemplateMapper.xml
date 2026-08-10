@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.WorkoutTemplateMapper">
+    <resultMap id="WorkoutTemplateResultMap" type="com.fitness.domain.WorkoutTemplate">
+        <id property="id" column="id"/>
+        <result property="ownerUserId" column="owner_user_id"/>
+        <result property="sourceWorkoutId" column="source_workout_id"/>
+        <result property="name" column="name"/>
+        <result property="bodyPart" column="body_part"/>
+        <result property="equipmentSnapshot" column="equipment_snapshot"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="profileSnapshot" column="profile_snapshot"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="WorkoutTemplateExerciseResultMap" type="com.fitness.domain.WorkoutTemplateExercise">
+        <id property="id" column="template_exercise_id"/>
+        <result property="templateId" column="template_id"/>
+        <result property="exerciseId" column="exercise_id"/>
+        <result property="sequence" column="sequence"/>
+        <result property="sets" column="sets"/>
+        <result property="reps" column="reps"/>
+        <result property="load" column="load"/>
+        <result property="loadType" column="load_type"/>
+        <result property="rpe" column="rpe"/>
+        <result property="createdAt" column="created_at"/>
+        <association property="exercise" javaType="com.fitness.domain.Exercise">
+            <id property="id" column="exercise_id"/>
+            <result property="name" column="exercise_name"/>
+            <result property="bodyPart" column="exercise_body_part"/>
+            <result property="target" column="exercise_target"/>
+            <result property="equipment" column="exercise_equipment"/>
+            <result property="gifUrl" column="exercise_gif_url"/>
+            <result property="imageUrl" column="exercise_image_url"/>
+        </association>
+    </resultMap>
+
+    <insert id="insertTemplate" parameterType="com.fitness.domain.WorkoutTemplate">
+        INSERT INTO workout_templates (
+            id, owner_user_id, source_workout_id, name, body_part,
+            equipment_snapshot, profile_snapshot, status
+        ) VALUES (
+            #{id}::uuid, #{ownerUserId}::uuid, #{sourceWorkoutId}::uuid,
+            #{name}, #{bodyPart}::on_demand_body_part_enum,
+            #{equipmentSnapshot, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{profileSnapshot, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{status}::workout_template_status_enum
+        )
+    </insert>
+
+    <insert id="insertTemplateExercise" parameterType="com.fitness.domain.WorkoutTemplateExercise">
+        INSERT INTO workout_template_exercises (
+            id, template_id, exercise_id, sequence, sets, reps, load, load_type, rpe
+        ) VALUES (
+            #{id}::uuid, #{templateId}::uuid, #{exerciseId}, #{sequence}, #{sets}, #{reps},
+            #{load}, #{loadType}::load_type_enum, #{rpe}
+        )
+    </insert>
+
+    <select id="findOwnedById" resultMap="WorkoutTemplateResultMap">
+        SELECT * FROM workout_templates
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+    </select>
+
+    <select id="findOwnedByUserId" resultMap="WorkoutTemplateResultMap">
+        SELECT * FROM workout_templates
+        WHERE owner_user_id = #{ownerUserId}::uuid
+        ORDER BY updated_at DESC, created_at DESC
+    </select>
+
+    <select id="findExercisesByTemplateId" resultMap="WorkoutTemplateExerciseResultMap">
+        SELECT te.id AS template_exercise_id, te.template_id, te.exercise_id, te.sequence,
+               te.sets, te.reps, te.load, te.load_type, te.rpe, te.created_at,
+               e.name AS exercise_name, e.body_part AS exercise_body_part,
+               e.target AS exercise_target, e.equipment AS exercise_equipment,
+               e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+        FROM workout_template_exercises te
+        JOIN exercises e ON e.id = te.exercise_id
+        WHERE te.template_id = #{templateId}::uuid
+        ORDER BY te.sequence
+    </select>
+
+    <delete id="deleteOwnedById">
+        DELETE FROM workout_templates
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+    </delete>
+</mapper>

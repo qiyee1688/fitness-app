@@ -89,9 +89,13 @@
     </update>
 
     <delete id="deleteExpiredDrafts">
-        DELETE FROM workouts
-        WHERE source = 'ON_DEMAND'::workout_source_enum
-          AND status = 'DRAFT'::workout_status_enum
-          AND expires_at &lt;= #{expiredBefore}
+        DELETE FROM workouts w
+        WHERE w.source = 'ON_DEMAND'::workout_source_enum
+          AND w.status = 'DRAFT'::workout_status_enum
+          AND w.expires_at &lt;= #{expiredBefore}
+          AND NOT EXISTS (
+              SELECT 1 FROM workout_templates wt
+              WHERE wt.source_workout_id = w.id
+          )
     </delete>
 </mapper>

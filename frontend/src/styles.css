@@ -194,13 +194,15 @@ h2 {
 }
 
 .on-demand-page,
-.generated-workout {
+.generated-workout,
+.template-page {
   display: grid;
   gap: 18px;
 }
 
 .on-demand-controls,
-.generated-workout {
+.generated-workout,
+.template-card {
   border: 1px solid #dfe5dc;
   border-radius: 8px;
   padding: 22px;
@@ -208,7 +210,9 @@ h2 {
 }
 
 .generated-workout-header,
-.on-demand-actions {
+.on-demand-actions,
+.template-card-header,
+.template-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -216,7 +220,9 @@ h2 {
 }
 
 .generated-workout-header h2,
-.generated-workout-header .eyebrow {
+.generated-workout-header .eyebrow,
+.template-card-header h2,
+.template-card-header .eyebrow {
   margin-bottom: 0;
 }
 
@@ -232,7 +238,26 @@ h2 {
   overflow: hidden;
 }
 
-.on-demand-prescription {
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.template-card {
+  display: grid;
+  gap: 16px;
+}
+
+.template-prescriptions {
+  display: grid;
+  border: 1px solid #e7ebe5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.on-demand-prescription,
+.template-prescription {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 14px;
@@ -241,33 +266,39 @@ h2 {
   padding: 14px 16px;
 }
 
-.on-demand-prescription:last-child {
+.on-demand-prescription:last-child,
+.template-prescription:last-child {
   border-bottom: 0;
 }
 
-.on-demand-prescription p {
+.on-demand-prescription p,
+.template-prescription p {
   margin: 4px 0 0;
   color: #66806d;
   font-size: 13px;
 }
 
-.on-demand-prescription dl {
+.on-demand-prescription dl,
+.template-prescription dl {
   display: grid;
   grid-template-columns: repeat(3, 52px);
   gap: 8px;
   margin: 0;
 }
 
-.on-demand-prescription dl div {
+.on-demand-prescription dl div,
+.template-prescription dl div {
   text-align: center;
 }
 
-.on-demand-prescription dt {
+.on-demand-prescription dt,
+.template-prescription dt {
   color: #66806d;
   font-size: 11px;
 }
 
-.on-demand-prescription dd {
+.on-demand-prescription dd,
+.template-prescription dd {
   margin: 2px 0 0;
   font-weight: 750;
 }
@@ -286,6 +317,21 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.detail-backbar {
+  position: sticky;
+  top: 78px;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.detail-back-button {
+  min-width: 112px;
+  box-shadow: 0 8px 20px rgba(36, 53, 43, 0.14);
+  pointer-events: auto;
 }
 
 .detail-layout {
@@ -761,15 +807,22 @@ h2 {
   }
 
   .on-demand-controls,
-  .generated-workout {
+  .generated-workout,
+  .template-card {
     padding: 16px;
   }
 
-  .on-demand-prescription {
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .on-demand-prescription,
+  .template-prescription {
     grid-template-columns: 28px minmax(0, 1fr);
   }
 
-  .on-demand-prescription dl {
+  .on-demand-prescription dl,
+  .template-prescription dl {
     grid-column: 2;
     grid-template-columns: repeat(3, minmax(48px, 1fr));
   }

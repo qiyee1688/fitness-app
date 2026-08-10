@@ -61,7 +61,8 @@ class WorkoutControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(400));
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid request"));
     }
 
     private OnDemandWorkoutResponse response(WorkoutStatus status) {
