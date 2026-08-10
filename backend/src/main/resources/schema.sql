@@ -19,6 +19,10 @@ CREATE TABLE exercises (
     instruction_steps JSONB NOT NULL,
     gif_url TEXT,
     image_url TEXT,
+    coach_cue TEXT,
+    coach_cue_en TEXT,
+    selection_priority INT NOT NULL DEFAULT 1000,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +32,7 @@ CREATE INDEX idx_exercises_body_part ON exercises(body_part);
 CREATE INDEX idx_exercises_equipment ON exercises(equipment);
 CREATE INDEX idx_exercises_target ON exercises(target);
 CREATE INDEX idx_exercises_muscle_group ON exercises(muscle_group);
+CREATE INDEX idx_exercises_selection_priority ON exercises(selection_priority, body_part, equipment);
 
 -- ============================================================
 -- Table: users (用户)
@@ -95,20 +100,35 @@ CREATE UNIQUE INDEX uq_plans_one_active_per_user
 -- Table: workouts (训练日)
 -- ============================================================
 CREATE TYPE training_day_focus_enum AS ENUM ('PUSH', 'PULL', 'LEGS', 'FULL_BODY');
+CREATE TYPE on_demand_body_part_enum AS ENUM ('CHEST', 'BACK', 'SHOULDERS', 'LEGS', 'WAIST');
+CREATE TYPE workout_source_enum AS ENUM ('PLAN_GENERATED', 'ON_DEMAND', 'TEMPLATE_REPLACEMENT');
+CREATE TYPE workout_status_enum AS ENUM ('DRAFT', 'READY', 'IN_PROGRESS', 'COMPLETED', 'REPLACED');
 
 CREATE TABLE workouts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-    day_number INT NOT NULL,
-    focus training_day_focus_enum NOT NULL,
+    owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id UUID REFERENCES plans(id) ON DELETE CASCADE,
+    replaced_workout_id UUID REFERENCES workouts(id) ON DELETE RESTRICT,
+    day_number INT,
+    focus training_day_focus_enum,
+    requested_body_part on_demand_body_part_enum,
+    equipment_snapshot JSONB,
+    source workout_source_enum NOT NULL DEFAULT 'PLAN_GENERATED',
+    status workout_status_enum NOT NULL DEFAULT 'READY',
+    started_at TIMESTAMP,
+    expires_at TIMESTAMP,
     completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_workout_plan FOREIGN KEY (plan_id) REFERENCES plans(id),
-    CONSTRAINT uq_plan_day UNIQUE (plan_id, day_number)
+    CONSTRAINT fk_workout_plan FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
 
 CREATE INDEX idx_workouts_plan_id ON workouts(plan_id);
+CREATE UNIQUE INDEX uq_workouts_active_plan_day
+    ON workouts(plan_id, day_number)
+    WHERE status <> 'REPLACED';
+CREATE INDEX idx_workouts_owner_source_status ON workouts(owner_user_id, source, status);
+CREATE INDEX idx_workouts_expires_at ON workouts(expires_at) WHERE status = 'DRAFT';
 CREATE INDEX idx_workouts_completed_at ON workouts(completed_at);
 
 -- ============================================================
@@ -134,6 +154,43 @@ CREATE TABLE prescriptions (
 
 CREATE INDEX idx_prescriptions_workout_id ON prescriptions(workout_id);
 CREATE INDEX idx_prescriptions_exercise_id ON prescriptions(exercise_id);
+
+-- ============================================================
+-- Table: workout_templates (用户保存的训练模板)
+-- ============================================================
+CREATE TYPE workout_template_status_enum AS ENUM ('ACTIVE', 'NEEDS_REPAIR');
+
+CREATE TABLE workout_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source_workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE RESTRICT,
+    name VARCHAR(80) NOT NULL,
+    body_part on_demand_body_part_enum NOT NULL,
+    equipment_snapshot JSONB NOT NULL,
+    status workout_template_status_enum NOT NULL DEFAULT 'ACTIVE',
+    version INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_template_source_workout UNIQUE (owner_user_id, source_workout_id)
+);
+
+CREATE TABLE workout_template_exercises (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    template_id UUID NOT NULL REFERENCES workout_templates(id) ON DELETE CASCADE,
+    exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
+    sequence INT NOT NULL,
+    sets INT NOT NULL CHECK (sets > 0),
+    reps INT NOT NULL CHECK (reps > 0),
+    load DECIMAL(5, 2),
+    load_type load_type_enum NOT NULL DEFAULT 'BODYWEIGHT',
+    rpe DECIMAL(3, 1) CHECK (rpe BETWEEN 6.0 AND 10.0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_template_exercise_sequence UNIQUE (template_id, sequence)
+);
+
+CREATE INDEX idx_workout_templates_owner_status ON workout_templates(owner_user_id, status);
+CREATE INDEX idx_workout_template_exercises_template_id ON workout_template_exercises(template_id);
+CREATE INDEX idx_workout_template_exercises_exercise_id ON workout_template_exercises(exercise_id);
 
 -- ============================================================
 -- Table: exercise_feedbacks (动作反馈)
@@ -181,4 +238,7 @@ CREATE TRIGGER update_plans_updated_at BEFORE UPDATE ON plans
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_workouts_updated_at BEFORE UPDATE ON workouts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workout_templates_updated_at BEFORE UPDATE ON workout_templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

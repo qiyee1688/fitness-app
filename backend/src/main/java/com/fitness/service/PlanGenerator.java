@@ -9,6 +9,8 @@ import com.fitness.domain.Prescription;
 import com.fitness.domain.TrainingDayFocus;
 import com.fitness.domain.UserProfile;
 import com.fitness.domain.Workout;
+import com.fitness.domain.WorkoutSource;
+import com.fitness.domain.WorkoutStatus;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -53,9 +55,12 @@ public class PlanGenerator {
                 TrainingDayFocus focus = weeklyFocuses.get(day);
                 Workout workout = new Workout();
                 workout.setId(UUID.randomUUID().toString());
+                workout.setOwnerUserId(profile.getUserId());
                 workout.setPlanId(planId);
                 workout.setDayNumber(week * 7 + day + 1);
                 workout.setFocus(focus);
+                workout.setSource(WorkoutSource.PLAN_GENERATED);
+                workout.setStatus(WorkoutStatus.READY);
                 workout.setPrescriptions(createPrescriptions(
                         workout.getId(), focus, profile.getFitnessLevel(), candidates, offsets));
                 workouts.add(workout);

@@ -1,6 +1,15 @@
 <template>
   <section class="page detail-page">
-    <el-button :icon="ArrowLeft" text @click="router.back()">{{ t('back') }}</el-button>
+    <div class="detail-backbar">
+      <el-button
+        :icon="ArrowLeft"
+        class="detail-back-button"
+        size="large"
+        type="primary"
+        plain
+        @click="go_back"
+      >{{ t('backToPrevious') }}</el-button>
+    </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-skeleton v-else-if="loading" :rows="10" animated />
@@ -25,6 +34,11 @@
           <el-tag type="success">{{ display_value(exercise.target, language) }}</el-tag>
           <el-tag type="info">{{ display_value(exercise.equipment, language) }}</el-tag>
         </div>
+
+        <section v-if="coach_cue" class="exercise-coach-cue">
+          <h2>{{ t('coachCue') }}</h2>
+          <p>{{ coach_cue }}</p>
+        </section>
 
         <dl class="meta-grid">
           <div>
@@ -68,7 +82,7 @@
 <script setup>
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { fetch_exercise } from '@/api/exercise'
 import { useLanguage } from '@/composables/useLanguage'
@@ -81,6 +95,7 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
 const router = useRouter()
 const { language, t } = useLanguage()
 const exercise = ref(null)
@@ -101,6 +116,15 @@ const secondary_muscles = computed(() => {
   return display_list(muscles, language.value)
 })
 
+const coach_cue = computed(() => {
+  if (!exercise.value) {
+    return ''
+  }
+  return language.value === 'zh'
+    ? exercise.value.coachCue || exercise.value.coachCueEn || ''
+    : exercise.value.coachCueEn || exercise.value.coachCue || ''
+})
+
 const steps = computed(() => {
   const instruction_steps = exercise.value?.instructionSteps
   if (!instruction_steps) {
@@ -112,6 +136,15 @@ const steps = computed(() => {
 
   return instruction_steps.en || instruction_steps.zh || Object.values(instruction_steps)[0] || []
 })
+
+function go_back() {
+  if (route.query.from === 'on-demand') {
+    router.push({ name: 'on-demand-workout' })
+    return
+  }
+
+  router.back()
+}
 
 async function load_detail() {
   loading.value = true

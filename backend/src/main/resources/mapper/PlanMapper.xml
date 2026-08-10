@@ -21,9 +21,15 @@
 
     <resultMap id="WorkoutResultMap" type="com.fitness.domain.Workout">
         <id property="id" column="id"/>
+        <result property="ownerUserId" column="owner_user_id"/>
         <result property="planId" column="plan_id"/>
+        <result property="replacedWorkoutId" column="replaced_workout_id"/>
         <result property="dayNumber" column="day_number"/>
         <result property="focus" column="focus"/>
+        <result property="source" column="source"/>
+        <result property="status" column="status"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="expiresAt" column="expires_at"/>
         <result property="completedAt" column="completed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
@@ -48,6 +54,8 @@
             <result property="equipment" column="exercise_equipment"/>
             <result property="gifUrl" column="exercise_gif_url"/>
             <result property="imageUrl" column="exercise_image_url"/>
+            <result property="coachCue" column="exercise_coach_cue"/>
+            <result property="coachCueEn" column="exercise_coach_cue_en"/>
             <result property="muscleGroup" column="exercise_muscle_group"/>
         </association>
     </resultMap>
@@ -81,9 +89,16 @@
         WHERE w.plan_id = #{planId}::uuid
     </select>
 
+    <select id="findOwnedPlanById" resultMap="PlanResultMap">
+        SELECT * FROM plans
+        WHERE id = #{planId}::uuid AND user_id = #{userId}::uuid
+        LIMIT 1
+    </select>
+
     <select id="findWorkoutsByPlanId" resultMap="WorkoutResultMap">
         SELECT * FROM workouts
         WHERE plan_id = #{planId}::uuid
+          AND status != 'REPLACED'::workout_status_enum
         ORDER BY day_number
     </select>
 
@@ -95,18 +110,23 @@
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
             e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
             e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN workouts w ON w.id = p.workout_id
         JOIN exercises e ON e.id = p.exercise_id
-        WHERE w.plan_id = #{planId}::uuid AND p.removed_at IS NULL
+        WHERE w.plan_id = #{planId}::uuid
+          AND w.status != 'REPLACED'::workout_status_enum
+          AND p.removed_at IS NULL
         ORDER BY w.day_number, p.sequence
     </select>
 
 
     <select id="findWorkoutByPlanIdAndDayNumber" resultMap="WorkoutResultMap">
         SELECT * FROM workouts
-        WHERE plan_id = #{planId}::uuid AND day_number = #{dayNumber}
+        WHERE plan_id = #{planId}::uuid
+          AND day_number = #{dayNumber}
+          AND status != 'REPLACED'::workout_status_enum
         LIMIT 1
     </select>
 
@@ -124,6 +144,7 @@
             e.name AS exercise_name, e.body_part AS exercise_body_part,
             e.target AS exercise_target, e.equipment AS exercise_equipment,
             e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+            e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
             e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN exercises e ON e.id = p.exercise_id
@@ -138,6 +159,7 @@
                e.name AS exercise_name, e.body_part AS exercise_body_part,
                e.target AS exercise_target, e.equipment AS exercise_equipment,
                e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
+               e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
                e.muscle_group AS exercise_muscle_group
         FROM prescriptions p
         JOIN exercises e ON e.id = p.exercise_id
@@ -205,7 +227,9 @@
 
     <update id="completeWorkout">
         UPDATE workouts
-        SET completed_at = #{completedAt}, updated_at = CURRENT_TIMESTAMP
+        SET completed_at = #{completedAt},
+            status = 'COMPLETED'::workout_status_enum,
+            updated_at = #{completedAt}
         WHERE id = #{id}::uuid AND completed_at IS NULL
     </update>
 
@@ -231,6 +255,26 @@
           AND version = #{version}
     </update>
 
+    <update id="bumpPlanVersion">
+        UPDATE plans
+        SET version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}::uuid
+          AND user_id = #{userId}::uuid
+          AND status = #{expectedStatus}::plan_status_enum
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="markWorkoutReplaced">
+        UPDATE workouts
+        SET status = 'REPLACED'::workout_status_enum,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}::uuid
+          AND plan_id = #{planId}::uuid
+          AND status = 'READY'::workout_status_enum
+          AND completed_at IS NULL
+    </update>
+
     <insert id="insertPlan" parameterType="com.fitness.domain.Plan">
         INSERT INTO plans (
             id, user_id, profile_snapshot, status, start_date, end_date,
@@ -249,8 +293,12 @@
     </insert>
 
     <insert id="insertWorkout" parameterType="com.fitness.domain.Workout">
-        INSERT INTO workouts (id, plan_id, day_number, focus)
-        VALUES (#{id}::uuid, #{planId}::uuid, #{dayNumber}, #{focus}::training_day_focus_enum)
+        INSERT INTO workouts (
+            id, owner_user_id, plan_id, replaced_workout_id, day_number, focus, source, status
+        )
+        VALUES (#{id}::uuid, #{ownerUserId}::uuid, #{planId}::uuid,
+                #{replacedWorkoutId}::uuid, #{dayNumber}, #{focus}::training_day_focus_enum,
+                #{source}::workout_source_enum, #{status}::workout_status_enum)
     </insert>
 
     <insert id="insertPrescription" parameterType="com.fitness.domain.Prescription">

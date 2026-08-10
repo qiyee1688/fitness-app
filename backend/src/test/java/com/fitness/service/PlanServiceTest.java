@@ -10,12 +10,19 @@ import com.fitness.domain.PlanStatus;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.TrainingDayFocus;
 import com.fitness.domain.Workout;
+import com.fitness.domain.WorkoutSource;
+import com.fitness.domain.WorkoutStatus;
+import com.fitness.domain.WorkoutTemplate;
+import com.fitness.domain.WorkoutTemplateExercise;
+import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.domain.User;
 import com.fitness.domain.UserProfile;
 import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
+import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
+import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
@@ -24,6 +31,7 @@ import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.ExerciseMapper;
 import com.fitness.mapper.PlanMapper;
 import com.fitness.mapper.UserMapper;
+import com.fitness.mapper.WorkoutTemplateMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,12 +58,13 @@ class PlanServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private ExerciseMapper exerciseMapper;
     @Mock private PlanMapper planMapper;
+    @Mock private WorkoutTemplateMapper templateMapper;
 
     private PlanService planService;
 
     @BeforeEach
     void setUp() {
-        planService = new PlanService(userMapper, exerciseMapper, planMapper, new PlanGenerator());
+        planService = new PlanService(userMapper, exerciseMapper, planMapper, new PlanGenerator(), templateMapper);
     }
 
     @Test
@@ -398,6 +407,99 @@ class PlanServiceTest {
         assertThat(response.removedForSafety()).isTrue();
     }
 
+    @Test
+    void replacesFuturePlanWorkoutWithTemplateSnapshotAndOptimisticLock() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        active.setVersion(7);
+        Workout original = workout(8);
+        original.setStatus(WorkoutStatus.READY);
+        WorkoutTemplate template = workoutTemplate();
+        WorkoutTemplateExercise templateExercise = templateExercise();
+        Prescription replacementPrescription = prescription("replacement-workout");
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findOwnedPlanById(active.getId(), user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(original.getId(), active.getId())).thenReturn(original);
+        when(templateMapper.findOwnedById(template.getId(), user.getId())).thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId(template.getId())).thenReturn(List.of(templateExercise));
+        when(planMapper.bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7)).thenReturn(1);
+        when(planMapper.markWorkoutReplaced(original.getId(), active.getId())).thenReturn(1);
+        when(planMapper.findPrescriptionsByWorkoutId(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(List.of(replacementPrescription));
+
+        ReplaceWorkoutWithTemplateResponse response = planService.replaceWorkoutWithTemplate(
+                "demo",
+                active.getId(),
+                original.getId(),
+                new ReplaceWorkoutWithTemplateRequest(template.getId(), 7),
+                LocalDate.of(2026, 8, 12));
+
+        assertThat(response.originalWorkoutId()).isEqualTo(original.getId());
+        assertThat(response.replacementWorkoutId()).isNotBlank();
+        assertThat(response.dayNumber()).isEqualTo(8);
+        verify(planMapper).bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7);
+        verify(planMapper).markWorkoutReplaced(original.getId(), active.getId());
+        verify(planMapper).insertWorkout(org.mockito.ArgumentMatchers.argThat(workout ->
+                workout.getSource() == WorkoutSource.TEMPLATE_REPLACEMENT
+                        && workout.getStatus() == WorkoutStatus.READY
+                        && workout.getReplacedWorkoutId().equals(original.getId())
+                        && workout.getDayNumber() == original.getDayNumber()));
+        verify(planMapper).insertPrescription(org.mockito.ArgumentMatchers.argThat(prescription ->
+                prescription.getExerciseId().equals(templateExercise.getExerciseId())
+                        && prescription.getSets() == templateExercise.getSets()
+                        && prescription.getReps() == templateExercise.getReps()));
+    }
+
+    @Test
+    void rejectsReplacingPastOrCompletedWorkout() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        Workout original = workout(1);
+        original.setStatus(WorkoutStatus.READY);
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findOwnedPlanById(active.getId(), user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(original.getId(), active.getId())).thenReturn(original);
+
+        assertThatThrownBy(() -> planService.replaceWorkoutWithTemplate(
+                "demo",
+                active.getId(),
+                original.getId(),
+                new ReplaceWorkoutWithTemplateRequest("template-id", 0),
+                LocalDate.of(2026, 8, 20)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_STATE_CONFLICT));
+        verify(planMapper, never()).markWorkoutReplaced(any(), any());
+    }
+
+    @Test
+    void rejectsTemplateReplacementWhenPlanVersionChanged() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        active.setVersion(3);
+        Workout original = workout(8);
+        original.setStatus(WorkoutStatus.READY);
+        WorkoutTemplate template = workoutTemplate();
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findOwnedPlanById(active.getId(), user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(original.getId(), active.getId())).thenReturn(original);
+        when(templateMapper.findOwnedById(template.getId(), user.getId())).thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId(template.getId())).thenReturn(List.of(templateExercise()));
+        when(planMapper.bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 3)).thenReturn(0);
+
+        assertThatThrownBy(() -> planService.replaceWorkoutWithTemplate(
+                "demo",
+                active.getId(),
+                original.getId(),
+                new ReplaceWorkoutWithTemplateRequest(template.getId(), 3),
+                LocalDate.of(2026, 8, 12)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PLAN_CONFLICT));
+        verify(planMapper, never()).markWorkoutReplaced(any(), any());
+    }
+
     private Plan activePlan() {
         Plan plan = new Plan();
         plan.setId("33333333-3333-3333-3333-333333333333");
@@ -424,6 +526,25 @@ class PlanServiceTest {
         prescription.setRpe(new BigDecimal("7.0"));
         prescription.setExercise(exercise());
         return prescription;
+    }
+
+    private WorkoutTemplate workoutTemplate() {
+        WorkoutTemplate template = new WorkoutTemplate();
+        template.setId("77777777-7777-7777-7777-777777777777");
+        template.setStatus(WorkoutTemplateStatus.ACTIVE);
+        return template;
+    }
+
+    private WorkoutTemplateExercise templateExercise() {
+        WorkoutTemplateExercise item = new WorkoutTemplateExercise();
+        item.setId("88888888-8888-8888-8888-888888888888");
+        item.setExerciseId("core");
+        item.setSequence(1);
+        item.setSets(4);
+        item.setReps(10);
+        item.setRpe(new BigDecimal("8.0"));
+        item.setLoadType(com.fitness.domain.LoadType.BODYWEIGHT);
+        return item;
     }
 
     private User user() {

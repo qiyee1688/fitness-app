@@ -60,4 +60,11 @@ public interface ExerciseMapper {
     );
 
     List<Exercise> findGeneratorCandidates(@Param("equipment") List<String> equipment);
+
+    List<Exercise> findOnDemandCandidates(
+            @Param("bodyParts") List<String> bodyParts,
+            @Param("equipment") List<String> equipment,
+            @Param("preferredEquipment") List<String> preferredEquipment,
+            @Param("ownerUserId") String ownerUserId
+    );
 }

@@ -9,11 +9,18 @@ import com.fitness.domain.Prescription;
 import com.fitness.domain.User;
 import com.fitness.domain.UserProfile;
 import com.fitness.domain.Workout;
+import com.fitness.domain.WorkoutSource;
+import com.fitness.domain.WorkoutStatus;
+import com.fitness.domain.WorkoutTemplate;
+import com.fitness.domain.WorkoutTemplateExercise;
+import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.dto.GeneratePlanRequest;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.GeneratedPlanResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
+import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
+import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
@@ -21,6 +28,7 @@ import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.ExerciseMapper;
 import com.fitness.mapper.PlanMapper;
 import com.fitness.mapper.UserMapper;
+import com.fitness.mapper.WorkoutTemplateMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,17 +52,20 @@ public class PlanService {
     private final ExerciseMapper exerciseMapper;
     private final PlanMapper planMapper;
     private final PlanGenerator planGenerator;
+    private final WorkoutTemplateMapper templateMapper;
 
     public PlanService(
             UserMapper userMapper,
             ExerciseMapper exerciseMapper,
             PlanMapper planMapper,
-            PlanGenerator planGenerator
+            PlanGenerator planGenerator,
+            WorkoutTemplateMapper templateMapper
     ) {
         this.userMapper = userMapper;
         this.exerciseMapper = exerciseMapper;
         this.planMapper = planMapper;
         this.planGenerator = planGenerator;
+        this.templateMapper = templateMapper;
     }
 
     public GeneratedPlanResponse generatePlan(GeneratePlanRequest request) {
@@ -271,6 +282,100 @@ public class PlanService {
                 substituted, removedForSafety, replacementExerciseId, todayWorkout);
     }
 
+    public ReplaceWorkoutWithTemplateResponse replaceWorkoutWithTemplate(
+            String username,
+            String planId,
+            String workoutId,
+            ReplaceWorkoutWithTemplateRequest request
+    ) {
+        return replaceWorkoutWithTemplate(username, planId, workoutId, request, LocalDate.now());
+    }
+
+    ReplaceWorkoutWithTemplateResponse replaceWorkoutWithTemplate(
+            String username,
+            String planId,
+            String workoutId,
+            ReplaceWorkoutWithTemplateRequest request,
+            LocalDate currentDate
+    ) {
+        User user = findUser(username);
+        Plan plan = planMapper.findOwnedPlanById(planId, user.getId());
+        if (plan == null) {
+            throw new BusinessException(ErrorCode.ACTIVE_PLAN_NOT_FOUND);
+        }
+        if (plan.getStatus() != PlanStatus.ACTIVE && plan.getStatus() != PlanStatus.SCHEDULED) {
+            throw new BusinessException(ErrorCode.WORKOUT_STATE_CONFLICT);
+        }
+
+        Workout original = planMapper.findWorkoutByIdAndPlanId(workoutId, plan.getId());
+        if (original == null || original.getStatus() == WorkoutStatus.REPLACED || original.getCompletedAt() != null) {
+            throw new BusinessException(ErrorCode.WORKOUT_NOT_FOUND);
+        }
+        LocalDate scheduledDate = plan.getStartDate().plusDays(original.getDayNumber() - 1L);
+        if (scheduledDate.isBefore(currentDate)) {
+            throw new BusinessException(ErrorCode.WORKOUT_STATE_CONFLICT);
+        }
+
+        WorkoutTemplate template = templateMapper.findOwnedById(request.templateId(), user.getId());
+        if (template == null) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+        }
+        if (template.getStatus() != WorkoutTemplateStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        }
+        List<WorkoutTemplateExercise> templateExercises = templateMapper.findExercisesByTemplateId(template.getId());
+        if (templateExercises.isEmpty()) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        }
+
+        if (planMapper.bumpPlanVersion(
+                plan.getId(), user.getId(), plan.getStatus(), request.expectedPlanVersion()) != 1) {
+            throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        }
+        System.out.printf(
+                "Confirm replacing workout planId=%s workoutId=%s templateId=%s ownerUserId=%s%n",
+                plan.getId(),
+                workoutId,
+                template.getId(),
+                user.getId());
+        if (planMapper.markWorkoutReplaced(original.getId(), plan.getId()) != 1) {
+            throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        }
+
+        Workout replacement = new Workout();
+        replacement.setId(UUID.randomUUID().toString());
+        replacement.setOwnerUserId(user.getId());
+        replacement.setPlanId(plan.getId());
+        replacement.setReplacedWorkoutId(original.getId());
+        replacement.setDayNumber(original.getDayNumber());
+        replacement.setFocus(original.getFocus());
+        replacement.setSource(WorkoutSource.TEMPLATE_REPLACEMENT);
+        replacement.setStatus(WorkoutStatus.READY);
+        planMapper.insertWorkout(replacement);
+        for (WorkoutTemplateExercise templateExercise : templateExercises) {
+            planMapper.insertPrescription(toReplacementPrescription(replacement.getId(), templateExercise));
+        }
+
+        List<Prescription> prescriptions = planMapper.findPrescriptionsByWorkoutId(replacement.getId());
+        PlanDetailResponse.WorkoutDetail detail = toWorkoutDetail(plan, replacement, prescriptions);
+        return new ReplaceWorkoutWithTemplateResponse(
+                plan.getId(), original.getId(), replacement.getId(), replacement.getDayNumber(), detail);
+    }
+
+    private Prescription toReplacementPrescription(String workoutId, WorkoutTemplateExercise templateExercise) {
+        Prescription prescription = new Prescription();
+        prescription.setId(UUID.randomUUID().toString());
+        prescription.setWorkoutId(workoutId);
+        prescription.setExerciseId(templateExercise.getExerciseId());
+        prescription.setSequence(templateExercise.getSequence());
+        prescription.setSets(templateExercise.getSets());
+        prescription.setReps(templateExercise.getReps());
+        prescription.setLoad(templateExercise.getLoad());
+        prescription.setLoadType(templateExercise.getLoadType());
+        prescription.setRpe(templateExercise.getRpe());
+        return prescription;
+    }
+
     private User findUser(String username) {
         User user = userMapper.findUserByUsername(username);
         if (user == null) {
@@ -373,7 +478,8 @@ public class PlanService {
         Exercise exercise = prescription.getExercise();
         PlanDetailResponse.ExerciseSummary exerciseSummary = new PlanDetailResponse.ExerciseSummary(
                 exercise.getId(), exercise.getName(), exercise.getBodyPart(), exercise.getTarget(),
-                exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl());
+                exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl(),
+                exercise.getCoachCue(), exercise.getCoachCueEn());
         return new PlanDetailResponse.PrescriptionDetail(
                 prescription.getId(), prescription.getSequence(), prescription.getSets(),
                 prescription.getReps(), prescription.getLoad(), prescription.getLoadType(),
