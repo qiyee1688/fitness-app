@@ -19,6 +19,10 @@
                 typeHandler="com.fitness.config.JsonbTypeHandler"/>
         <result property="gifUrl" column="gif_url"/>
         <result property="imageUrl" column="image_url"/>
+        <result property="coachCue" column="coach_cue"/>
+        <result property="coachCueEn" column="coach_cue_en"/>
+        <result property="selectionPriority" column="selection_priority"/>
+        <result property="active" column="active"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -122,16 +126,36 @@
     </select>
 
     <select id="findOnDemandCandidates" resultMap="ExerciseResultMap">
-        SELECT * FROM exercises
-        WHERE body_part IN
+        SELECT e.* FROM exercises e
+        WHERE e.active = TRUE
+        AND e.body_part IN
         <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
             #{bodyPart}
         </foreach>
-        AND equipment IN
+        AND e.equipment IN
         <foreach collection="equipment" item="item" open="(" separator="," close=")">
             #{item}
         </foreach>
-        ORDER BY equipment, name, id
+        AND NOT EXISTS (
+            SELECT 1
+            FROM exercise_feedbacks ef
+            JOIN workouts feedback_workout ON feedback_workout.id = ef.workout_id
+            WHERE feedback_workout.owner_user_id = #{ownerUserId}::uuid
+              AND ef.exercise_id = e.id
+              AND ef.feedback_type LIKE 'HURT_%'
+              AND ef.filter_until &gt;= CURRENT_DATE
+        )
+        ORDER BY e.selection_priority,
+                 <choose>
+                     <when test="preferredEquipment != null and preferredEquipment.size() > 0">
+                         CASE WHEN e.equipment IN
+                         <foreach collection="preferredEquipment" item="item" open="(" separator="," close=")">
+                             #{item}
+                         </foreach>
+                         THEN 0 ELSE 1 END,
+                     </when>
+                 </choose>
+                 e.id
     </select>
 
 </mapper>

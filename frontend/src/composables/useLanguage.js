@@ -118,9 +118,11 @@ const messages = {
     generateWorkout: '生成训练',
     generatingWorkout: '生成中',
     generatedWorkout: '本次训练',
+    replaceWorkout: '换一组',
     startWorkout: '开始训练',
     workoutDraft: '待开始',
     workoutInProgress: '进行中',
+    coachCue: '教练提示',
   },
   en: {
     appName: 'Fitness App',
@@ -227,9 +229,11 @@ const messages = {
     generateWorkout: 'Generate Workout',
     generatingWorkout: 'Generating',
     generatedWorkout: 'Your Workout',
+    replaceWorkout: 'Try Another',
     startWorkout: 'Start Workout',
     workoutDraft: 'Ready to Start',
     workoutInProgress: 'In Progress',
+    coachCue: 'Coach Cue',
   },
 }
 

@@ -19,10 +19,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({ConstraintViolationException.class, MethodArgumentNotValidException.class})
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(Exception ignored) {
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(ErrorCode.INVALID_REQUEST.getCode(), exception.getMessage()));
+                .body(ApiResponse.error(
+                        ErrorCode.INVALID_REQUEST.getCode(),
+                        ErrorCode.INVALID_REQUEST.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

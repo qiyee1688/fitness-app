@@ -61,7 +61,29 @@ class WorkoutControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid request"));
+    }
+
+    @Test
+    void rejectsNegativeVariation() throws Exception {
+        mockMvc.perform(post("/workouts/on-demand")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bodyPart\":\"CHEST\",\"variation\":-1}"))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void returnsBilingualCoachCue() throws Exception {
+        when(service.generate(any())).thenReturn(responseWithCoachCue());
+
+        mockMvc.perform(post("/workouts/on-demand")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bodyPart\":\"CHEST\",\"variation\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.prescriptions[0].exercise.coachCue").value("保持核心稳定"))
+                .andExpect(jsonPath("$.data.prescriptions[0].exercise.coachCueEn").value("Brace your core"));
     }
 
     private OnDemandWorkoutResponse response(WorkoutStatus status) {
@@ -71,5 +93,18 @@ class WorkoutControllerTest {
                 status == WorkoutStatus.IN_PROGRESS ? LocalDateTime.now() : null,
                 status == WorkoutStatus.COMPLETED ? LocalDateTime.now() : null,
                 LocalDateTime.now().plusHours(24), List.of());
+    }
+
+    private OnDemandWorkoutResponse responseWithCoachCue() {
+        var exercise = new com.fitness.dto.PlanDetailResponse.ExerciseSummary(
+                "exercise-id", "Push up", "chest", "pectorals", "body weight",
+                null, null, "保持核心稳定", "Brace your core");
+        var prescription = new com.fitness.dto.PlanDetailResponse.PrescriptionDetail(
+                "prescription-id", 1, 3, 12, null,
+                com.fitness.domain.LoadType.BODYWEIGHT, new java.math.BigDecimal("7.5"), exercise);
+        return new OnDemandWorkoutResponse(
+                "workout-id", OnDemandBodyPart.CHEST, List.of("body weight"),
+                WorkoutSource.ON_DEMAND, WorkoutStatus.DRAFT, null, null,
+                LocalDateTime.now().plusHours(24), List.of(prescription));
     }
 }
