@@ -373,7 +373,8 @@ public class PlanService {
         Exercise exercise = prescription.getExercise();
         PlanDetailResponse.ExerciseSummary exerciseSummary = new PlanDetailResponse.ExerciseSummary(
                 exercise.getId(), exercise.getName(), exercise.getBodyPart(), exercise.getTarget(),
-                exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl());
+                exercise.getEquipment(), exercise.getGifUrl(), exercise.getImageUrl(),
+                exercise.getCoachCue(), exercise.getCoachCueEn());
         return new PlanDetailResponse.PrescriptionDetail(
                 prescription.getId(), prescription.getSequence(), prescription.getSets(),
                 prescription.getReps(), prescription.getLoad(), prescription.getLoadType(),

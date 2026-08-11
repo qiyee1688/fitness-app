@@ -8,6 +8,8 @@ import com.fitness.service.ExerciseService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 
 @Component
 @ConditionalOnProperty(name = "fitness.seed.exercises.enabled", havingValue = "true")
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 public class ExerciseSeedImporter implements ApplicationRunner {
 
     private static final String DATASET_BASE_URL =

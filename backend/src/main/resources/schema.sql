@@ -19,6 +19,10 @@ CREATE TABLE exercises (
     instruction_steps JSONB NOT NULL,
     gif_url TEXT,
     image_url TEXT,
+    coach_cue TEXT,
+    coach_cue_en TEXT,
+    selection_priority INT NOT NULL DEFAULT 1000,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,6 +32,8 @@ CREATE INDEX idx_exercises_body_part ON exercises(body_part);
 CREATE INDEX idx_exercises_equipment ON exercises(equipment);
 CREATE INDEX idx_exercises_target ON exercises(target);
 CREATE INDEX idx_exercises_muscle_group ON exercises(muscle_group);
+CREATE INDEX idx_exercises_selection_priority ON exercises(selection_priority, body_part, equipment);
+
 -- ============================================================
 -- Table: users (用户)
 -- ============================================================

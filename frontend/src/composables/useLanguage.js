@@ -120,6 +120,7 @@ const messages = {
     generateWorkout: '生成训练',
     generatingWorkout: '生成中',
     generatedWorkout: '本次训练',
+    replaceWorkout: '换一组',
     startWorkout: '开始训练',
     saveAsTemplate: '保存为模板',
     templateSaved: '已保存为模板，可后续复用或替换计划训练。',
@@ -138,6 +139,7 @@ const messages = {
     templateDeleted: '训练模板已删除',
     workoutDraft: '待开始',
     workoutInProgress: '进行中',
+    coachCue: '教练提示',
   },
   en: {
     appName: 'Fitness App',
@@ -246,6 +248,7 @@ const messages = {
     generateWorkout: 'Generate Workout',
     generatingWorkout: 'Generating',
     generatedWorkout: 'Your Workout',
+    replaceWorkout: 'Try Another',
     startWorkout: 'Start Workout',
     saveAsTemplate: 'Save as Template',
     templateSaved: 'Saved as a template for reuse or future plan replacement.',
@@ -264,6 +267,7 @@ const messages = {
     templateDeleted: 'Workout template deleted',
     workoutDraft: 'Ready to Start',
     workoutInProgress: 'In Progress',
+    coachCue: 'Coach Cue',
   },
 }
 

@@ -22,6 +22,10 @@ public class Exercise {
     private Map<String, List<String>> instructionSteps;  // {"en": [...], "zh": [...]}
     private String gifUrl;
     private String imageUrl;
+    private String coachCue;
+    private String coachCueEn;
+    private int selectionPriority;
+    private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

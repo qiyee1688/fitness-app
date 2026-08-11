@@ -62,6 +62,9 @@
               <strong>{{ display_exercise_name(prescription.exercise.name, language) }}</strong>
             </router-link>
             <p>{{ display_value(prescription.exercise.equipment, language) }}</p>
+            <p v-if="coach_cue(prescription.exercise)" class="coach-cue">
+              {{ coach_cue(prescription.exercise) }}
+            </p>
           </div>
           <dl>
             <div><dt>{{ t('sets') }}</dt><dd>{{ prescription.sets }}</dd></div>
@@ -72,6 +75,12 @@
       </div>
 
       <div class="on-demand-actions">
+        <el-button
+          v-if="workout.status === 'DRAFT'"
+          :icon="Refresh"
+          :loading="generating"
+          @click="replace_workout"
+        >{{ t('replaceWorkout') }}</el-button>
         <el-button
           v-if="workout.status === 'DRAFT'"
           :loading="saving_template"
@@ -106,7 +115,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { CircleCheck, VideoPlay } from '@element-plus/icons-vue'
+import { CircleCheck, Refresh, VideoPlay } from '@element-plus/icons-vue'
 
 import {
   complete_on_demand_workout,
@@ -129,6 +138,7 @@ const save_equipment = ref(false)
 const saved_template = ref(null)
 const saving_template = ref(false)
 const transitioning = ref(false)
+const variation = ref(0)
 const workout = ref(null)
 
 const body_part_options = computed(() => [
@@ -149,6 +159,16 @@ const equipment_options = computed(() => [
 ])
 
 async function generate_workout() {
+  variation.value = 0
+  await generate_current_variation()
+}
+
+async function replace_workout() {
+  variation.value += 1
+  await generate_current_variation()
+}
+
+async function generate_current_variation() {
   generating.value = true
   error.value = ''
   workout.value = null
@@ -159,6 +179,7 @@ async function generate_workout() {
       bodyPart: body_part.value,
       equipment: equipment.value,
       saveEquipmentToProfile: save_equipment.value,
+      variation: variation.value,
     })
     persist_cached_workout()
   } catch (exception) {
@@ -186,6 +207,12 @@ async function save_template() {
 
 function template_name() {
   return `${t('customTemplateName')} - ${body_part_label(workout.value.bodyPart)}`
+}
+
+function coach_cue(exercise) {
+  return language.value === 'zh'
+    ? exercise.coachCue || exercise.coachCueEn || ''
+    : exercise.coachCueEn || exercise.coachCue || ''
 }
 
 async function start_workout() {
