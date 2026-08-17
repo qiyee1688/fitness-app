@@ -326,6 +326,25 @@ h2 {
   font-weight: 750;
 }
 
+.template-title-block { min-width: 0; flex: 1; }
+.template-edit-list { display: grid; gap: 12px; }
+.template-edit-item { display: grid; gap: 12px; border: 1px solid #e7ebe5; border-radius: 8px; padding: 14px; }
+.template-edit-heading,
+.template-substitute-row,
+.template-edit-item-actions { display: flex; align-items: center; gap: 10px; }
+.template-edit-heading { justify-content: space-between; }
+.template-edit-exercise { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.template-edit-exercise small,
+.template-edit-item-actions small { color: #66806d; }
+.template-substitute-row { flex-wrap: wrap; }
+.template-substitute-row .el-select { min-width: 240px; flex: 1; }
+.template-inline-warning { color: #a06420; }
+.template-edit-fields { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 10px; }
+.template-edit-fields label { display: grid; gap: 5px; color: #66806d; font-size: 12px; font-weight: 700; }
+.template-edit-fields .el-input-number,
+.template-edit-fields .el-select { width: 100%; }
+.template-edit-item-actions { justify-content: space-between; }
+
 .profile-form {
   display: grid;
   gap: 6px;
@@ -849,6 +868,10 @@ h2 {
     grid-column: 2;
     grid-template-columns: repeat(3, minmax(48px, 1fr));
   }
+
+  .template-edit-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .template-edit-heading,
+  .template-edit-item-actions { align-items: flex-start; flex-direction: column; }
 
   .prescription-metrics div {
     border-left: 0;

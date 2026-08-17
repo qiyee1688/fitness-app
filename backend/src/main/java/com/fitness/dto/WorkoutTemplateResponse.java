@@ -1,6 +1,7 @@
 package com.fitness.dto;
 
 import com.fitness.domain.OnDemandBodyPart;
+import com.fitness.domain.WorkoutTemplateRepairReason;
 import com.fitness.domain.WorkoutTemplateStatus;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ public record WorkoutTemplateResponse(
         Map<String, Object> profileSnapshot,
         boolean profileChanged,
         WorkoutTemplateStatus status,
+        Map<String, WorkoutTemplateRepairReason> repairReasons,
         int version,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

@@ -1,0 +1,14 @@
+{
+  "relations": [
+    { "fromExerciseId": "0662", "toExerciseId": "0493", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0662", "toExerciseId": "0259", "reason": "EQUIPMENT_SWAP", "priority": 20, "confirmed": true },
+    { "fromExerciseId": "0662", "toExerciseId": "0283", "reason": "EQUIPMENT_SWAP", "priority": 30, "confirmed": true },
+    { "fromExerciseId": "0662", "toExerciseId": "0279", "reason": "EQUIPMENT_SWAP", "priority": 40, "confirmed": true },
+    { "fromExerciseId": "0025", "toExerciseId": "0289", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0289", "toExerciseId": "0025", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0027", "toExerciseId": "0293", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0293", "toExerciseId": "0027", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0043", "toExerciseId": "0413", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true },
+    { "fromExerciseId": "0413", "toExerciseId": "0043", "reason": "EQUIPMENT_SWAP", "priority": 10, "confirmed": true }
+  ]
+}

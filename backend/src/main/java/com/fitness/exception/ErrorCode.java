@@ -20,9 +20,15 @@ public enum ErrorCode {
             "Not enough exercises for the selected body part and equipment",
             HttpStatus.UNPROCESSABLE_ENTITY),
     WORKOUT_TEMPLATE_INVALID(42203, "Workout template cannot be created from this workout", HttpStatus.UNPROCESSABLE_ENTITY),
+    WORKOUT_TEMPLATE_EDIT_INVALID(42204, "Workout template edit is invalid", HttpStatus.UNPROCESSABLE_ENTITY),
+    WORKOUT_TEMPLATE_SUBSTITUTE_INVALID(
+            42205,
+            "Exercise is not an available substitute for this template",
+            HttpStatus.UNPROCESSABLE_ENTITY),
     PLAN_CONFLICT(40901, "Plan was changed concurrently; please retry", HttpStatus.CONFLICT),
     FEEDBACK_CONFLICT(40902, "Workout changed while applying feedback; please retry", HttpStatus.CONFLICT),
     WORKOUT_STATE_CONFLICT(40903, "Workout state changed; please refresh", HttpStatus.CONFLICT),
+    WORKOUT_TEMPLATE_CONFLICT(40904, "Workout template changed; please refresh", HttpStatus.CONFLICT),
     INTERNAL_ERROR(500, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

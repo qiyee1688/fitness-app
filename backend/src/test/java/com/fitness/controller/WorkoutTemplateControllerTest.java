@@ -1,6 +1,7 @@
 package com.fitness.controller;
 
 import com.fitness.domain.LoadType;
+import com.fitness.domain.Exercise;
 import com.fitness.domain.OnDemandBodyPart;
 import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.dto.PlanDetailResponse;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -59,6 +61,39 @@ class WorkoutTemplateControllerTest {
     }
 
     @Test
+    void updateReturnsUnifiedTemplateResponse() throws Exception {
+        when(service.update(any(), any())).thenReturn(response());
+
+        mockMvc.perform(patch("/workout-templates/template-id")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedVersion":2,"name":"Edited template","exercises":[
+                                  {"templateExerciseId":"item-1","exerciseId":"push-up","sequence":1,
+                                   "sets":4,"reps":10,"load":null,"loadType":"BODYWEIGHT","rpe":8.0}
+                                ]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.templateId").value("template-id"));
+        verify(service).update(org.mockito.ArgumentMatchers.eq("template-id"), any());
+    }
+
+    @Test
+    void substitutesReturnsOnlyServiceProvidedOptions() throws Exception {
+        Exercise substitute = new Exercise();
+        substitute.setId("incline-push-up");
+        substitute.setName("Incline Push-Up");
+        substitute.setEquipment("body weight");
+        substitute.setActive(true);
+        when(service.listSubstitutes("template-id", "item-1")).thenReturn(List.of(substitute));
+
+        mockMvc.perform(get("/workout-templates/template-id/exercises/item-1/substitutes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].id").value("incline-push-up"));
+    }
+
+    @Test
     void createRejectsBlankSourceWorkoutId() throws Exception {
         mockMvc.perform(post("/workout-templates")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -86,7 +121,7 @@ class WorkoutTemplateControllerTest {
                 new BigDecimal("7.5"), exercise);
         return new WorkoutTemplateResponse(
                 "template-id", "workout-id", "Chest builder", OnDemandBodyPart.CHEST,
-                List.of("body weight"), Map.of(), false, WorkoutTemplateStatus.ACTIVE, 0,
+                List.of("body weight"), Map.of(), false, WorkoutTemplateStatus.ACTIVE, Map.of(), 0,
                 null, null, List.of(item));
     }
 }

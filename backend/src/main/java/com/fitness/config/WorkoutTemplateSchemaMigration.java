@@ -19,6 +19,7 @@ public class WorkoutTemplateSchemaMigration implements ApplicationRunner {
     private static final String TEMPLATE_SCHEMA_CHECK = """
             SELECT to_regclass('public.workout_templates') IS NOT NULL
                AND to_regclass('public.workout_template_exercises') IS NOT NULL
+               AND to_regclass('public.exercise_substitutes') IS NOT NULL
                AND EXISTS (
                    SELECT 1
                    FROM information_schema.columns

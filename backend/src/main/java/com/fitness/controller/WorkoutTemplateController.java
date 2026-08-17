@@ -1,7 +1,9 @@
 package com.fitness.controller;
 
+import com.fitness.domain.Exercise;
 import com.fitness.dto.ApiResponse;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
+import com.fitness.dto.UpdateWorkoutTemplateRequest;
 import com.fitness.dto.WorkoutTemplateResponse;
 import com.fitness.service.WorkoutTemplateService;
 import jakarta.validation.Valid;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +43,23 @@ public class WorkoutTemplateController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<WorkoutTemplateResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(templateService.list()));
+    }
+
+    @GetMapping("/{templateId}/exercises/{templateExerciseId}/substitutes")
+    public ResponseEntity<ApiResponse<List<Exercise>>> substitutes(
+            @PathVariable @NotBlank String templateId,
+            @PathVariable @NotBlank String templateExerciseId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                templateService.listSubstitutes(templateId, templateExerciseId)));
+    }
+
+    @PatchMapping("/{templateId}")
+    public ResponseEntity<ApiResponse<WorkoutTemplateResponse>> update(
+            @PathVariable @NotBlank String templateId,
+            @Valid @RequestBody UpdateWorkoutTemplateRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(templateService.update(templateId, request)));
     }
 
     @DeleteMapping("/{templateId}")

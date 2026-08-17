@@ -186,6 +186,19 @@ CREATE TABLE workout_template_exercises (
     CONSTRAINT uq_template_exercise_sequence UNIQUE (template_id, sequence)
 );
 
+CREATE TABLE exercise_substitutes (
+    from_exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    to_exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    reason VARCHAR(32) NOT NULL,
+    priority INT NOT NULL DEFAULT 100,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (from_exercise_id, to_exercise_id, reason),
+    CONSTRAINT chk_exercise_substitute_distinct CHECK (from_exercise_id <> to_exercise_id),
+    CONSTRAINT chk_exercise_substitute_reason CHECK (
+        reason IN ('EQUIPMENT_SWAP', 'DIFFICULTY_DOWNGRADE', 'INJURY_FRIENDLY', 'OTHER')
+    )
+);
+
 CREATE INDEX idx_workout_templates_owner_status ON workout_templates(owner_user_id, status);
 CREATE INDEX idx_workout_template_exercises_template_id ON workout_template_exercises(template_id);
 CREATE INDEX idx_workout_template_exercises_exercise_id ON workout_template_exercises(exercise_id);

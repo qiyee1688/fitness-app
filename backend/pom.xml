@@ -21,6 +21,7 @@
     <properties>
         <java.version>21</java.version>
         <mybatis-spring-boot.version>3.0.5</mybatis-spring-boot.version>
+        <mybatis-plus.version>3.5.14</mybatis-plus.version>
     </properties>
 
     <dependencies>
@@ -30,11 +31,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- MyBatis Spring Boot Starter -->
+        <!-- MyBatis-Plus Spring Boot Starter -->
         <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>${mybatis-spring-boot.version}</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
 
         <!-- PostgreSQL Driver -->

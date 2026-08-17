@@ -37,5 +37,6 @@ class WorkoutTemplateSchemaMigrationTest {
         verify(jdbcTemplate).execute(migrationSql.capture());
         assertThat(migrationSql.getValue()).contains("CREATE TABLE IF NOT EXISTS workout_templates");
         assertThat(migrationSql.getValue()).contains("ADD COLUMN IF NOT EXISTS profile_snapshot");
+        assertThat(migrationSql.getValue()).contains("CREATE TABLE IF NOT EXISTS exercise_substitutes");
     }
 }
