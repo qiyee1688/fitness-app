@@ -95,7 +95,7 @@ class PlanServiceTest {
         when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
 
         GeneratedPlanResponse response = planService.generatePlan(
-                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 10)));
+                new GeneratePlanRequest("demo", LocalDate.now().plusDays(1)));
 
         assertThat(response.status()).isEqualTo(PlanStatus.SCHEDULED);
         verify(planMapper, never()).supersedeActive(any(), any(Integer.class));

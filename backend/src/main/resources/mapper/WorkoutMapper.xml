@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.WorkoutMapper">
+    <resultMap id="WorkoutResultMap" type="com.fitness.domain.Workout">
+        <id property="id" column="id"/>
+        <result property="ownerUserId" column="owner_user_id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="dayNumber" column="day_number"/>
+        <result property="focus" column="focus"/>
+        <result property="requestedBodyPart" column="requested_body_part"/>
+        <result property="equipmentSnapshot" column="equipment_snapshot"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="source" column="source"/>
+        <result property="status" column="status"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="PrescriptionResultMap" type="com.fitness.domain.Prescription">
+        <id property="id" column="prescription_id"/>
+        <result property="workoutId" column="workout_id"/>
+        <result property="exerciseId" column="exercise_id"/>
+        <result property="sequence" column="sequence"/>
+        <result property="sets" column="sets"/>
+        <result property="reps" column="reps"/>
+        <result property="load" column="load"/>
+        <result property="loadType" column="load_type"/>
+        <result property="rpe" column="rpe"/>
+        <association property="exercise" javaType="com.fitness.domain.Exercise">
+            <id property="id" column="exercise_id"/>
+            <result property="name" column="exercise_name"/>
+            <result property="bodyPart" column="exercise_body_part"/>
+            <result property="target" column="exercise_target"/>
+            <result property="equipment" column="exercise_equipment"/>
+            <result property="gifUrl" column="exercise_gif_url"/>
+            <result property="imageUrl" column="exercise_image_url"/>
+        </association>
+    </resultMap>
+
+    <insert id="insertWorkout" parameterType="com.fitness.domain.Workout">
+        INSERT INTO workouts (
+            id, owner_user_id, plan_id, day_number, focus, requested_body_part,
+            equipment_snapshot, source, status, expires_at
+        ) VALUES (
+            #{id}::uuid, #{ownerUserId}::uuid, NULL, NULL, NULL,
+            #{requestedBodyPart}::on_demand_body_part_enum,
+            #{equipmentSnapshot, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{source}::workout_source_enum, #{status}::workout_status_enum, #{expiresAt}
+        )
+    </insert>
+
+    <insert id="insertPrescription" parameterType="com.fitness.domain.Prescription">
+        INSERT INTO prescriptions (id, workout_id, exercise_id, sequence, sets, reps, load, load_type, rpe)
+        VALUES (#{id}::uuid, #{workoutId}::uuid, #{exerciseId}, #{sequence}, #{sets}, #{reps},
+                #{load}, #{loadType}::load_type_enum, #{rpe})
+    </insert>
+
+    <select id="findOwnedById" resultMap="WorkoutResultMap">
+        SELECT * FROM workouts
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+          AND source = 'ON_DEMAND'::workout_source_enum
+    </select>
+
+    <select id="findPrescriptionsByWorkoutId" resultMap="PrescriptionResultMap">
+        SELECT p.id AS prescription_id, p.workout_id, p.exercise_id, p.sequence,
+               p.sets, p.reps, p.load, p.load_type, p.rpe,
+               e.name AS exercise_name, e.body_part AS exercise_body_part,
+               e.target AS exercise_target, e.equipment AS exercise_equipment,
+               e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url
+        FROM prescriptions p
+        JOIN exercises e ON e.id = p.exercise_id
+        WHERE p.workout_id = #{workoutId}::uuid AND p.removed_at IS NULL
+        ORDER BY p.sequence
+    </select>
+
+    <update id="transitionStatus">
+        UPDATE workouts
+        SET status = #{newStatus}::workout_status_enum,
+            started_at = CASE WHEN #{newStatus} = 'IN_PROGRESS' THEN #{changedAt} ELSE started_at END,
+            completed_at = CASE WHEN #{newStatus} = 'COMPLETED' THEN #{changedAt} ELSE completed_at END,
+            updated_at = #{changedAt}
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+          AND status = #{expectedStatus}::workout_status_enum
+    </update>
+
+    <delete id="deleteExpiredDrafts">
+        DELETE FROM workouts
+        WHERE source = 'ON_DEMAND'::workout_source_enum
+          AND status = 'DRAFT'::workout_status_enum
+          AND expires_at &lt;= #{expiredBefore}
+    </delete>
+</mapper>

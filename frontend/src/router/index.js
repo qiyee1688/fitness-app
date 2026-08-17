@@ -5,6 +5,7 @@ import ExerciseList from '@/views/ExerciseList.vue'
 import PlanView from '@/views/PlanView.vue'
 import TodayWorkout from '@/views/TodayWorkout.vue'
 import UserProfile from '@/views/UserProfile.vue'
+import OnDemandWorkout from '@/views/OnDemandWorkout.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -19,6 +20,11 @@ const router = createRouter({
       name: 'exercise-detail',
       component: ExerciseDetail,
       props: true,
+    },
+    {
+      path: '/workouts/on-demand',
+      name: 'on-demand-workout',
+      component: OnDemandWorkout,
     },
     {
       path: '/today',

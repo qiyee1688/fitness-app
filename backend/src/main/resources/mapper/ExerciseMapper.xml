@@ -121,4 +121,17 @@
         ORDER BY body_part, target, name
     </select>
 
+    <select id="findOnDemandCandidates" resultMap="ExerciseResultMap">
+        SELECT * FROM exercises
+        WHERE body_part IN
+        <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
+            #{bodyPart}
+        </foreach>
+        AND equipment IN
+        <foreach collection="equipment" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        ORDER BY equipment, name, id
+    </select>
+
 </mapper>

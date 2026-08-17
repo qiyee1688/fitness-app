@@ -21,9 +21,14 @@
 
     <resultMap id="WorkoutResultMap" type="com.fitness.domain.Workout">
         <id property="id" column="id"/>
+        <result property="ownerUserId" column="owner_user_id"/>
         <result property="planId" column="plan_id"/>
         <result property="dayNumber" column="day_number"/>
         <result property="focus" column="focus"/>
+        <result property="source" column="source"/>
+        <result property="status" column="status"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="expiresAt" column="expires_at"/>
         <result property="completedAt" column="completed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
@@ -205,7 +210,9 @@
 
     <update id="completeWorkout">
         UPDATE workouts
-        SET completed_at = #{completedAt}, updated_at = CURRENT_TIMESTAMP
+        SET completed_at = #{completedAt},
+            status = 'COMPLETED'::workout_status_enum,
+            updated_at = #{completedAt}
         WHERE id = #{id}::uuid AND completed_at IS NULL
     </update>
 
@@ -249,8 +256,10 @@
     </insert>
 
     <insert id="insertWorkout" parameterType="com.fitness.domain.Workout">
-        INSERT INTO workouts (id, plan_id, day_number, focus)
-        VALUES (#{id}::uuid, #{planId}::uuid, #{dayNumber}, #{focus}::training_day_focus_enum)
+        INSERT INTO workouts (id, owner_user_id, plan_id, day_number, focus, source, status)
+        VALUES (#{id}::uuid, #{ownerUserId}::uuid, #{planId}::uuid, #{dayNumber},
+                #{focus}::training_day_focus_enum, #{source}::workout_source_enum,
+                #{status}::workout_status_enum)
     </insert>
 
     <insert id="insertPrescription" parameterType="com.fitness.domain.Prescription">
