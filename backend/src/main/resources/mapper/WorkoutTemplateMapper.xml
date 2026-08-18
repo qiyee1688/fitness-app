@@ -38,6 +38,7 @@
             <result property="imageUrl" column="exercise_image_url"/>
             <result property="coachCue" column="exercise_coach_cue"/>
             <result property="coachCueEn" column="exercise_coach_cue_en"/>
+            <result property="active" column="exercise_active"/>
         </association>
     </resultMap>
 
@@ -79,7 +80,8 @@
                e.name AS exercise_name, e.body_part AS exercise_body_part,
                e.target AS exercise_target, e.equipment AS exercise_equipment,
                e.gif_url AS exercise_gif_url, e.image_url AS exercise_image_url,
-               e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en
+               e.coach_cue AS exercise_coach_cue, e.coach_cue_en AS exercise_coach_cue_en,
+               e.is_active AS exercise_active
         FROM workout_template_exercises te
         JOIN exercises e ON e.id = te.exercise_id
         WHERE te.template_id = #{templateId}::uuid

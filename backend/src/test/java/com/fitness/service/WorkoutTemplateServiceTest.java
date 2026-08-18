@@ -4,6 +4,7 @@ import com.fitness.domain.Exercise;
 import com.fitness.domain.LoadType;
 import com.fitness.domain.OnDemandBodyPart;
 import com.fitness.domain.Prescription;
+import com.fitness.domain.UserProfile;
 import com.fitness.domain.Workout;
 import com.fitness.domain.WorkoutStatus;
 import com.fitness.domain.WorkoutTemplate;
@@ -198,6 +199,16 @@ class WorkoutTemplateServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
         verify(templateMapper, never()).updateOwnedTemplate(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void acceptsActiveBodyweightTemplateWithMatchingProfileEquipment() {
+        WorkoutTemplateExercise item = templateExercise();
+        item.getExercise().setActive(true);
+        UserProfile profile = new UserProfile();
+        profile.setAvailableEquipment(List.of("body weight"));
+
+        assertThat(service.requiresRepair(List.of(item), profile)).isFalse();
     }
 
     private UpdateWorkoutTemplateRequest updateRequest() {
