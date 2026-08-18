@@ -439,13 +439,17 @@ class PlanServiceTest {
         WorkoutTemplate template = workoutTemplate();
         WorkoutTemplateExercise templateExercise = templateExercise();
         Prescription replacementPrescription = prescription("replacement-workout");
+        UserProfile profile = profile();
         when(userMapper.findUserByUsername("demo")).thenReturn(user);
         when(planMapper.findOwnedPlanById(active.getId(), user.getId())).thenReturn(active);
         when(planMapper.findWorkoutByIdAndPlanId(original.getId(), active.getId())).thenReturn(original);
         when(templateMapper.findOwnedById(template.getId(), user.getId())).thenReturn(template);
         when(templateMapper.findExercisesByTemplateId(template.getId())).thenReturn(List.of(templateExercise));
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile);
         when(planMapper.bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7)).thenReturn(1);
         when(planMapper.markWorkoutReplaced(original.getId(), active.getId())).thenReturn(1);
+        when(nutritionService.generateForWorkout(any(Workout.class), org.mockito.ArgumentMatchers.same(profile)))
+                .thenReturn(List.of(tipResponse("replacement-workout")));
         when(planMapper.findPrescriptionsByWorkoutId(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(List.of(replacementPrescription));
 
@@ -460,8 +464,10 @@ class PlanServiceTest {
         assertThat(response.replacementWorkoutId()).isNotBlank();
         assertThat(response.dayNumber()).isEqualTo(8);
         assertThat(response.workout().status()).isEqualTo(WorkoutStatus.READY);
+        assertThat(response.workout().nutritionTips()).hasSize(1);
         verify(planMapper).bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7);
         verify(planMapper).markWorkoutReplaced(original.getId(), active.getId());
+        verify(nutritionService).generateForWorkout(any(Workout.class), org.mockito.ArgumentMatchers.same(profile));
         verify(planMapper).insertWorkout(org.mockito.ArgumentMatchers.argThat(workout ->
                 workout.getSource() == WorkoutSource.TEMPLATE_REPLACEMENT
                         && workout.getStatus() == WorkoutStatus.READY

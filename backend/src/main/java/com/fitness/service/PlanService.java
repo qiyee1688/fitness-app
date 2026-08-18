@@ -376,8 +376,9 @@ public class PlanService {
             planMapper.insertPrescription(toReplacementPrescription(replacement.getId(), templateExercise));
         }
 
+        List<NutritionTipResponse> nutritionTips = nutritionService.generateForWorkout(replacement, profile);
         List<Prescription> prescriptions = planMapper.findPrescriptionsByWorkoutId(replacement.getId());
-        PlanDetailResponse.WorkoutDetail detail = toWorkoutDetail(plan, replacement, prescriptions, List.of());
+        PlanDetailResponse.WorkoutDetail detail = toWorkoutDetail(plan, replacement, prescriptions, nutritionTips);
         return new ReplaceWorkoutWithTemplateResponse(
                 plan.getId(), original.getId(), replacement.getId(), replacement.getDayNumber(), detail);
     }

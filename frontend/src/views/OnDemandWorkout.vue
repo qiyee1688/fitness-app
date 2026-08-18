@@ -74,6 +74,8 @@
         </article>
       </div>
 
+      <NutritionTips :tips="workout.nutritionTips || []" />
+
       <div class="on-demand-actions">
         <el-button
           v-if="workout.status === 'DRAFT'"
@@ -126,6 +128,7 @@ import {
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 import { fetch_user_profile } from '@/api/user'
+import NutritionTips from '@/components/NutritionTips.vue'
 
 const ON_DEMAND_CACHE_KEY = 'fitness:on-demand-workout:last-result'
 

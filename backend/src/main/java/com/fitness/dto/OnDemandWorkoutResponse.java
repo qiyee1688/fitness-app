@@ -16,6 +16,21 @@ public record OnDemandWorkoutResponse(
         LocalDateTime startedAt,
         LocalDateTime completedAt,
         LocalDateTime expiresAt,
-        List<PlanDetailResponse.PrescriptionDetail> prescriptions
+        List<PlanDetailResponse.PrescriptionDetail> prescriptions,
+        List<NutritionTipResponse> nutritionTips
 ) {
+    public OnDemandWorkoutResponse(
+            String workoutId,
+            OnDemandBodyPart bodyPart,
+            List<String> equipment,
+            WorkoutSource source,
+            WorkoutStatus status,
+            LocalDateTime startedAt,
+            LocalDateTime completedAt,
+            LocalDateTime expiresAt,
+            List<PlanDetailResponse.PrescriptionDetail> prescriptions
+    ) {
+        this(workoutId, bodyPart, equipment, source, status, startedAt, completedAt,
+                expiresAt, prescriptions, List.of());
+    }
 }

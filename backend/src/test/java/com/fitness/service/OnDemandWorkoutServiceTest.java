@@ -3,10 +3,12 @@ package com.fitness.service;
 import com.fitness.domain.Exercise;
 import com.fitness.domain.FitnessLevel;
 import com.fitness.domain.OnDemandBodyPart;
+import com.fitness.domain.NutritionTiming;
 import com.fitness.domain.UserProfile;
 import com.fitness.domain.Workout;
 import com.fitness.domain.WorkoutStatus;
 import com.fitness.dto.GenerateOnDemandWorkoutRequest;
+import com.fitness.dto.NutritionTipResponse;
 import com.fitness.dto.OnDemandWorkoutResponse;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
@@ -41,6 +43,7 @@ class OnDemandWorkoutServiceTest {
     private UserMapper userMapper;
     private ExerciseMapper exerciseMapper;
     private WorkoutMapper workoutMapper;
+    private NutritionService nutritionService;
     private OnDemandWorkoutService service;
 
     @BeforeEach
@@ -49,9 +52,28 @@ class OnDemandWorkoutServiceTest {
         userMapper = mock(UserMapper.class);
         exerciseMapper = mock(ExerciseMapper.class);
         workoutMapper = mock(WorkoutMapper.class);
+        nutritionService = mock(NutritionService.class);
         service = new OnDemandWorkoutService(
-                currentUserProvider, userMapper, exerciseMapper, workoutMapper, CLOCK);
+                currentUserProvider, userMapper, exerciseMapper, workoutMapper, nutritionService, CLOCK);
         when(currentUserProvider.requireUserId()).thenReturn("user-id");
+    }
+
+    @Test
+    void generatesNutritionTipsForOnDemandWorkout() {
+        UserProfile profile = profile(FitnessLevel.BEGINNER);
+        when(userMapper.findProfileByUserId("user-id")).thenReturn(profile);
+        when(exerciseMapper.findOnDemandCandidates(any(), any(), any(), any()))
+                .thenReturn(exercises(4, "dumbbell"));
+        when(nutritionService.generateForWorkout(any(Workout.class), org.mockito.ArgumentMatchers.same(profile)))
+                .thenReturn(List.of(new NutritionTipResponse(
+                        "tip-id", "workout-id", NutritionTiming.PRE_WORKOUT,
+                        null, "训练前补充能量", "Fuel before training", "rule-id", 1, null)));
+
+        OnDemandWorkoutResponse response = service.generate(
+                new GenerateOnDemandWorkoutRequest(OnDemandBodyPart.CHEST, List.of("dumbbell"), false, 0));
+
+        assertThat(response.nutritionTips()).hasSize(1);
+        verify(nutritionService).generateForWorkout(any(Workout.class), org.mockito.ArgumentMatchers.same(profile));
     }
 
     @ParameterizedTest

@@ -9,6 +9,7 @@ import com.fitness.domain.Workout;
 import com.fitness.domain.WorkoutSource;
 import com.fitness.domain.WorkoutStatus;
 import com.fitness.dto.GenerateOnDemandWorkoutRequest;
+import com.fitness.dto.NutritionTipResponse;
 import com.fitness.dto.OnDemandWorkoutResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.exception.BusinessException;
@@ -41,6 +42,7 @@ public class OnDemandWorkoutService {
     private final UserMapper userMapper;
     private final ExerciseMapper exerciseMapper;
     private final WorkoutMapper workoutMapper;
+    private final NutritionService nutritionService;
     private final Clock clock;
 
     @Autowired
@@ -48,9 +50,11 @@ public class OnDemandWorkoutService {
             CurrentUserProvider currentUserProvider,
             UserMapper userMapper,
             ExerciseMapper exerciseMapper,
-            WorkoutMapper workoutMapper
+            WorkoutMapper workoutMapper,
+            NutritionService nutritionService
     ) {
-        this(currentUserProvider, userMapper, exerciseMapper, workoutMapper, Clock.systemDefaultZone());
+        this(currentUserProvider, userMapper, exerciseMapper, workoutMapper,
+                nutritionService, Clock.systemDefaultZone());
     }
 
     OnDemandWorkoutService(
@@ -58,12 +62,14 @@ public class OnDemandWorkoutService {
             UserMapper userMapper,
             ExerciseMapper exerciseMapper,
             WorkoutMapper workoutMapper,
+            NutritionService nutritionService,
             Clock clock
     ) {
         this.currentUserProvider = currentUserProvider;
         this.userMapper = userMapper;
         this.exerciseMapper = exerciseMapper;
         this.workoutMapper = workoutMapper;
+        this.nutritionService = nutritionService;
         this.clock = clock;
     }
 
@@ -94,11 +100,12 @@ public class OnDemandWorkoutService {
 
         workoutMapper.insertWorkout(workout);
         workout.getPrescriptions().forEach(workoutMapper::insertPrescription);
+        List<NutritionTipResponse> nutritionTips = nutritionService.generateForWorkout(workout, profile);
         if (request.saveEquipmentToProfile() && profile != null) {
             profile.setAvailableEquipment(equipment);
             userMapper.updateProfile(profile);
         }
-        return toResponse(workout);
+        return toResponse(workout, nutritionTips);
     }
 
     public OnDemandWorkoutResponse start(String workoutId) {
@@ -138,7 +145,7 @@ public class OnDemandWorkoutService {
             workout.setCompletedAt(changedAt);
         }
         workout.setPrescriptions(workoutMapper.findPrescriptionsByWorkoutId(workoutId));
-        return toResponse(workout);
+        return toResponse(workout, nutritionService.listOwnedWorkoutTips(workout.getId()));
     }
 
     private List<String> resolveEquipment(UserProfile profile, List<String> requested) {
@@ -217,14 +224,17 @@ public class OnDemandWorkoutService {
         return List.copyOf(prescriptions);
     }
 
-    private OnDemandWorkoutResponse toResponse(Workout workout) {
+    private OnDemandWorkoutResponse toResponse(
+            Workout workout,
+            List<NutritionTipResponse> nutritionTips
+    ) {
         List<PlanDetailResponse.PrescriptionDetail> details = workout.getPrescriptions().stream()
                 .map(this::toPrescriptionDetail)
                 .toList();
         return new OnDemandWorkoutResponse(
                 workout.getId(), workout.getRequestedBodyPart(), workout.getEquipmentSnapshot(),
                 workout.getSource(), workout.getStatus(), workout.getStartedAt(), workout.getCompletedAt(),
-                workout.getExpiresAt(), details);
+                workout.getExpiresAt(), details, nutritionTips == null ? List.of() : nutritionTips);
     }
 
     private PlanDetailResponse.PrescriptionDetail toPrescriptionDetail(Prescription prescription) {
