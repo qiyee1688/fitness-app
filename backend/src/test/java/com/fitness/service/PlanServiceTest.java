@@ -61,6 +61,7 @@ class PlanServiceTest {
     @Mock private ExerciseMapper exerciseMapper;
     @Mock private PlanMapper planMapper;
     @Mock private WorkoutTemplateMapper templateMapper;
+    @Mock private WorkoutTemplateService workoutTemplateService;
     @Mock private NutritionService nutritionService;
 
     private PlanService planService;
@@ -68,7 +69,13 @@ class PlanServiceTest {
     @BeforeEach
     void setUp() {
         planService = new PlanService(
-                userMapper, exerciseMapper, planMapper, new PlanGenerator(), templateMapper, nutritionService);
+                userMapper,
+                exerciseMapper,
+                planMapper,
+                new PlanGenerator(),
+                templateMapper,
+                workoutTemplateService,
+                nutritionService);
     }
 
     @Test
@@ -486,8 +493,36 @@ class PlanServiceTest {
                 new ReplaceWorkoutWithTemplateRequest("template-id", 0),
                 LocalDate.of(2026, 8, 20)))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_STATE_CONFLICT));
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PLAN_WORKOUT_REPLACEMENT_INVALID));
         verify(planMapper, never()).markWorkoutReplaced(any(), any());
+    }
+
+    @Test
+    void rejectsTemplateReplacementWhenTemplateNeedsRepair() {
+        User user = user();
+        Plan active = activePlan();
+        active.setStatus(PlanStatus.ACTIVE);
+        Workout original = workout(8);
+        original.setStatus(WorkoutStatus.READY);
+        WorkoutTemplate template = workoutTemplate();
+        List<WorkoutTemplateExercise> exercises = List.of(templateExercise());
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findOwnedPlanById(active.getId(), user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(original.getId(), active.getId())).thenReturn(original);
+        when(templateMapper.findOwnedById(template.getId(), user.getId())).thenReturn(template);
+        when(templateMapper.findExercisesByTemplateId(template.getId())).thenReturn(exercises);
+        when(userMapper.findProfileByUserId(user.getId())).thenReturn(profile());
+        when(workoutTemplateService.requiresRepair(exercises, profile())).thenReturn(true);
+
+        assertThatThrownBy(() -> planService.replaceWorkoutWithTemplate(
+                "demo",
+                active.getId(),
+                original.getId(),
+                new ReplaceWorkoutWithTemplateRequest(template.getId(), 0),
+                LocalDate.of(2026, 8, 12)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NEEDS_REPAIR));
+        verify(planMapper, never()).bumpPlanVersion(any(), any(), any(), any(Integer.class));
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.fitness.domain.WorkoutStatus;
 import com.fitness.domain.WorkoutTemplate;
 import com.fitness.domain.WorkoutTemplateExercise;
 import com.fitness.domain.WorkoutTemplateStatus;
+import com.fitness.domain.UserProfile;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.UpdateWorkoutTemplateRequest;
@@ -19,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -135,6 +138,44 @@ public class WorkoutTemplateService {
         if (deleted == 0) {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
         }
+    }
+
+    boolean requiresRepair(List<WorkoutTemplateExercise> exercises, UserProfile profile) {
+        if (exercises == null || exercises.isEmpty()) {
+            return true;
+        }
+        Set<String> availableEquipment = new LinkedHashSet<>();
+        availableEquipment.add("body weight");
+        if (profile != null && profile.getAvailableEquipment() != null) {
+            profile.getAvailableEquipment().stream()
+                    .filter(equipment -> equipment != null && !equipment.isBlank())
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .forEach(availableEquipment::add);
+        }
+        return exercises.stream().anyMatch(item -> requiresRepair(item, availableEquipment));
+    }
+
+    private boolean requiresRepair(WorkoutTemplateExercise item, Set<String> availableEquipment) {
+        Exercise exercise = item.getExercise();
+        if (exercise == null || !exercise.isActive()) {
+            return true;
+        }
+        String exerciseEquipment = exercise.getEquipment() == null
+                ? ""
+                : exercise.getEquipment().trim().toLowerCase();
+        if (!availableEquipment.contains(exerciseEquipment)) {
+            return true;
+        }
+        boolean bodyweightExercise = "body weight".equals(exerciseEquipment);
+        if (item.getLoadType() == null) {
+            return true;
+        }
+        return switch (item.getLoadType()) {
+            case BODYWEIGHT -> !bodyweightExercise;
+            case ABSOLUTE_WEIGHT, PERCENT_1RM -> bodyweightExercise;
+            case RPE_ONLY, DURATION -> false;
+        };
     }
 
     private void validatePrescriptionUpdates(

@@ -21,6 +21,14 @@ public enum ErrorCode {
             "Not enough exercises for the selected body part and equipment",
             HttpStatus.UNPROCESSABLE_ENTITY),
     WORKOUT_TEMPLATE_INVALID(42203, "Workout template cannot be created from this workout", HttpStatus.UNPROCESSABLE_ENTITY),
+    WORKOUT_TEMPLATE_NEEDS_REPAIR(
+            42206,
+            "Workout template needs repair before it can replace a plan workout",
+            HttpStatus.UNPROCESSABLE_ENTITY),
+    PLAN_WORKOUT_REPLACEMENT_INVALID(
+            42207,
+            "Workout cannot be replaced because it is no longer current or scheduled",
+            HttpStatus.UNPROCESSABLE_ENTITY),
     PLAN_CONFLICT(40901, "Plan was changed concurrently; please retry", HttpStatus.CONFLICT),
     FEEDBACK_CONFLICT(40902, "Workout changed while applying feedback; please retry", HttpStatus.CONFLICT),
     WORKOUT_STATE_CONFLICT(40903, "Workout state changed; please refresh", HttpStatus.CONFLICT),

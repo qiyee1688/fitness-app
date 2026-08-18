@@ -55,6 +55,7 @@ public class PlanService {
     private final PlanMapper planMapper;
     private final PlanGenerator planGenerator;
     private final WorkoutTemplateMapper templateMapper;
+    private final WorkoutTemplateService workoutTemplateService;
     private final NutritionService nutritionService;
 
     @Autowired
@@ -64,6 +65,7 @@ public class PlanService {
             PlanMapper planMapper,
             PlanGenerator planGenerator,
             WorkoutTemplateMapper templateMapper,
+            WorkoutTemplateService workoutTemplateService,
             NutritionService nutritionService
     ) {
         this.userMapper = userMapper;
@@ -71,6 +73,7 @@ public class PlanService {
         this.planMapper = planMapper;
         this.planGenerator = planGenerator;
         this.templateMapper = templateMapper;
+        this.workoutTemplateService = workoutTemplateService;
         this.nutritionService = nutritionService;
     }
 
@@ -323,11 +326,11 @@ public class PlanService {
 
         Workout original = planMapper.findWorkoutByIdAndPlanId(workoutId, plan.getId());
         if (original == null || original.getStatus() == WorkoutStatus.REPLACED || original.getCompletedAt() != null) {
-            throw new BusinessException(ErrorCode.WORKOUT_NOT_FOUND);
+            throw new BusinessException(ErrorCode.PLAN_WORKOUT_REPLACEMENT_INVALID);
         }
         LocalDate scheduledDate = plan.getStartDate().plusDays(original.getDayNumber() - 1L);
         if (scheduledDate.isBefore(currentDate)) {
-            throw new BusinessException(ErrorCode.WORKOUT_STATE_CONFLICT);
+            throw new BusinessException(ErrorCode.PLAN_WORKOUT_REPLACEMENT_INVALID);
         }
 
         WorkoutTemplate template = templateMapper.findOwnedById(request.templateId(), user.getId());
@@ -335,11 +338,12 @@ public class PlanService {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
         }
         if (template.getStatus() != WorkoutTemplateStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NEEDS_REPAIR);
         }
         List<WorkoutTemplateExercise> templateExercises = templateMapper.findExercisesByTemplateId(template.getId());
-        if (templateExercises.isEmpty()) {
-            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
+        UserProfile profile = userMapper.findProfileByUserId(user.getId());
+        if (workoutTemplateService.requiresRepair(templateExercises, profile)) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NEEDS_REPAIR);
         }
 
         if (planMapper.bumpPlanVersion(
