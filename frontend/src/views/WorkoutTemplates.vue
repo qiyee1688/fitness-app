@@ -50,6 +50,14 @@
           </el-tag>
         </div>
 
+        <el-alert
+          v-if="template.profileChanged"
+          :title="t('templateProfileChanged')"
+          type="warning"
+          show-icon
+          :closable="false"
+        />
+
         <div class="template-prescriptions">
           <article
             v-for="prescription in template.exercises"

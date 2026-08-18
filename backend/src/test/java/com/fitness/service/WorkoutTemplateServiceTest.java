@@ -1,6 +1,8 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.FitnessLevel;
+import com.fitness.domain.Goal;
 import com.fitness.domain.LoadType;
 import com.fitness.domain.OnDemandBodyPart;
 import com.fitness.domain.Prescription;
@@ -17,12 +19,14 @@ import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.WorkoutMapper;
 import com.fitness.mapper.WorkoutTemplateMapper;
+import com.fitness.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,6 +41,7 @@ class WorkoutTemplateServiceTest {
     private CurrentUserProvider currentUserProvider;
     private WorkoutMapper workoutMapper;
     private WorkoutTemplateMapper templateMapper;
+    private UserMapper userMapper;
     private WorkoutTemplateService service;
 
     @BeforeEach
@@ -44,7 +49,8 @@ class WorkoutTemplateServiceTest {
         currentUserProvider = mock(CurrentUserProvider.class);
         workoutMapper = mock(WorkoutMapper.class);
         templateMapper = mock(WorkoutTemplateMapper.class);
-        service = new WorkoutTemplateService(currentUserProvider, workoutMapper, templateMapper);
+        userMapper = mock(UserMapper.class);
+        service = new WorkoutTemplateService(currentUserProvider, workoutMapper, templateMapper, userMapper);
         when(currentUserProvider.requireUserId()).thenReturn("user-id");
     }
 
@@ -52,8 +58,10 @@ class WorkoutTemplateServiceTest {
     void createsTemplateByCopyingOnDemandDraftPrescriptionSnapshot() {
         Workout workout = workout(WorkoutStatus.DRAFT);
         Prescription prescription = prescription();
+        UserProfile profile = profile();
         when(workoutMapper.findOwnedById("workout-id", "user-id")).thenReturn(workout);
         when(workoutMapper.findPrescriptionsByWorkoutId("workout-id")).thenReturn(List.of(prescription));
+        when(userMapper.findProfileByUserId("user-id")).thenReturn(profile);
 
         WorkoutTemplateResponse response = service.create(new CreateWorkoutTemplateRequest(
                 "workout-id", "Chest builder"));
@@ -69,6 +77,7 @@ class WorkoutTemplateServiceTest {
         assertThat(savedTemplate.getName()).isEqualTo("Chest builder");
         assertThat(savedTemplate.getBodyPart()).isEqualTo(OnDemandBodyPart.CHEST);
         assertThat(savedTemplate.getEquipmentSnapshot()).containsExactly("body weight", "dumbbell");
+        assertThat(savedTemplate.getProfileSnapshot()).containsEntry("goal", "MUSCLE_GAIN");
         assertThat(savedTemplate.getStatus()).isEqualTo(WorkoutTemplateStatus.ACTIVE);
 
         WorkoutTemplateExercise savedExercise = exerciseCaptor.getValue();
@@ -80,6 +89,7 @@ class WorkoutTemplateServiceTest {
         assertThat(savedExercise.getRpe()).isEqualByComparingTo("7.5");
 
         assertThat(response.templateId()).isEqualTo(savedTemplate.getId());
+        assertThat(response.profileChanged()).isFalse();
         assertThat(response.exercises()).hasSize(1);
         assertThat(response.exercises().getFirst().exercise().coachCue()).isEqualTo("核心收紧");
     }
@@ -211,6 +221,27 @@ class WorkoutTemplateServiceTest {
         assertThat(service.requiresRepair(List.of(item), profile)).isFalse();
     }
 
+    @Test
+    void flagsTemplateWhenCurrentProfileDiffersFromSavedSnapshot() {
+        WorkoutTemplate template = template();
+        template.setProfileSnapshot(Map.of(
+                "fitnessLevel", "BEGINNER",
+                "goal", "MUSCLE_GAIN",
+                "daysPerWeek", 3,
+                "availableEquipment", List.of("body weight"),
+                "weightKg", "70"));
+        template.setExercises(List.of(templateExercise()));
+        UserProfile changedProfile = profile();
+        changedProfile.setWeightKg(new BigDecimal("71.0"));
+        when(templateMapper.findOwnedByUserId("user-id")).thenReturn(List.of(template));
+        when(templateMapper.findExercisesByTemplateId("template-id")).thenReturn(template.getExercises());
+        when(userMapper.findProfileByUserId("user-id")).thenReturn(changedProfile);
+
+        WorkoutTemplateResponse response = service.list().getFirst();
+
+        assertThat(response.profileChanged()).isTrue();
+    }
+
     private UpdateWorkoutTemplateRequest updateRequest() {
         return new UpdateWorkoutTemplateRequest(0, " Edited template ", List.of(
                 updateItem("item-1", 1),
@@ -294,5 +325,15 @@ class WorkoutTemplateServiceTest {
         exercise.setCoachCue("核心收紧");
         exercise.setCoachCueEn("Brace your core");
         return exercise;
+    }
+
+    private UserProfile profile() {
+        UserProfile profile = new UserProfile();
+        profile.setFitnessLevel(FitnessLevel.BEGINNER);
+        profile.setGoal(Goal.MUSCLE_GAIN);
+        profile.setDaysPerWeek(3);
+        profile.setAvailableEquipment(List.of("body weight"));
+        profile.setWeightKg(new BigDecimal("70.0"));
+        return profile;
     }
 }

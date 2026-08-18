@@ -22,8 +22,9 @@ class WorkoutTemplateSchemaMigrationTest {
 
         migration.run(new DefaultApplicationArguments());
 
-        verify(jdbcTemplate).queryForObject(
-                "SELECT to_regclass('public.workout_templates') IS NOT NULL", Boolean.class);
+        var schemaCheck = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForObject(schemaCheck.capture(), org.mockito.ArgumentMatchers.eq(Boolean.class));
+        assertThat(schemaCheck.getValue()).contains("workout_templates", "profile_snapshot");
         verifyNoMoreInteractions(jdbcTemplate);
     }
 

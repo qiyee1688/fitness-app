@@ -16,8 +16,16 @@ import java.nio.charset.StandardCharsets;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class WorkoutTemplateSchemaMigration implements ApplicationRunner {
-    private static final String TEMPLATE_TABLE_CHECK =
-            "SELECT to_regclass('public.workout_templates') IS NOT NULL";
+    private static final String TEMPLATE_TABLE_CHECK = """
+            SELECT to_regclass('public.workout_templates') IS NOT NULL
+               AND EXISTS (
+                   SELECT 1
+                   FROM information_schema.columns
+                   WHERE table_schema = 'public'
+                     AND table_name = 'workout_templates'
+                     AND column_name = 'profile_snapshot'
+               )
+            """;
     private static final String MIGRATION_RESOURCE =
             "migration/20260806_add_workout_templates.sql";
 

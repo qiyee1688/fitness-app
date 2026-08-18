@@ -16,12 +16,16 @@ import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.WorkoutMapper;
 import com.fitness.mapper.WorkoutTemplateMapper;
+import com.fitness.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -34,15 +38,18 @@ public class WorkoutTemplateService {
     private final CurrentUserProvider currentUserProvider;
     private final WorkoutMapper workoutMapper;
     private final WorkoutTemplateMapper templateMapper;
+    private final UserMapper userMapper;
 
     public WorkoutTemplateService(
             CurrentUserProvider currentUserProvider,
             WorkoutMapper workoutMapper,
-            WorkoutTemplateMapper templateMapper
+            WorkoutTemplateMapper templateMapper,
+            UserMapper userMapper
     ) {
         this.currentUserProvider = currentUserProvider;
         this.workoutMapper = workoutMapper;
         this.templateMapper = templateMapper;
+        this.userMapper = userMapper;
     }
 
     @Transactional
@@ -60,6 +67,7 @@ public class WorkoutTemplateService {
         if (prescriptions.isEmpty()) {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
         }
+        UserProfile profile = userMapper.findProfileByUserId(userId);
 
         WorkoutTemplate template = new WorkoutTemplate();
         template.setId(UUID.randomUUID().toString());
@@ -68,6 +76,7 @@ public class WorkoutTemplateService {
         template.setName(resolveName(request.name(), workout));
         template.setBodyPart(workout.getRequestedBodyPart());
         template.setEquipmentSnapshot(workout.getEquipmentSnapshot());
+        template.setProfileSnapshot(snapshot(profile));
         template.setStatus(WorkoutTemplateStatus.ACTIVE);
         templateMapper.insertTemplate(template);
 
@@ -77,15 +86,16 @@ public class WorkoutTemplateService {
         items.forEach(templateMapper::insertTemplateExercise);
         template.setExercises(items);
 
-        return toResponse(template);
+        return toResponse(template, profile);
     }
 
     public List<WorkoutTemplateResponse> list() {
         String userId = currentUserProvider.requireUserId();
+        UserProfile profile = userMapper.findProfileByUserId(userId);
         return templateMapper.findOwnedByUserId(userId).stream()
                 .peek(template -> template.setExercises(
                         templateMapper.findExercisesByTemplateId(template.getId())))
-                .map(this::toResponse)
+                .map(template -> toResponse(template, profile))
                 .toList();
     }
 
@@ -124,7 +134,7 @@ public class WorkoutTemplateService {
 
         WorkoutTemplate refreshed = templateMapper.findOwnedById(templateId, userId);
         refreshed.setExercises(templateMapper.findExercisesByTemplateId(templateId));
-        return toResponse(refreshed);
+        return toResponse(refreshed, userMapper.findProfileByUserId(userId));
     }
 
     @Transactional
@@ -242,7 +252,7 @@ public class WorkoutTemplateService {
         return DEFAULT_TEMPLATE_NAME + " - " + workout.getRequestedBodyPart().name();
     }
 
-    private WorkoutTemplateResponse toResponse(WorkoutTemplate template) {
+    private WorkoutTemplateResponse toResponse(WorkoutTemplate template, UserProfile currentProfile) {
         List<PlanDetailResponse.PrescriptionDetail> exercises = template.getExercises() == null
                 ? List.of()
                 : template.getExercises().stream().map(this::toPrescriptionDetail).toList();
@@ -252,11 +262,37 @@ public class WorkoutTemplateService {
                 template.getName(),
                 template.getBodyPart(),
                 template.getEquipmentSnapshot(),
+                template.getProfileSnapshot(),
+                profileChanged(template, currentProfile),
                 template.getStatus(),
                 template.getVersion(),
                 template.getCreatedAt(),
                 template.getUpdatedAt(),
                 exercises);
+    }
+
+    private Map<String, Object> snapshot(UserProfile profile) {
+        if (profile == null) {
+            return Map.of();
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("fitnessLevel", profile.getFitnessLevel() == null ? null : profile.getFitnessLevel().name());
+        snapshot.put("goal", profile.getGoal() == null ? null : profile.getGoal().name());
+        snapshot.put("daysPerWeek", profile.getDaysPerWeek());
+        snapshot.put("availableEquipment", profile.getAvailableEquipment() == null
+                ? List.of()
+                : List.copyOf(profile.getAvailableEquipment()));
+        snapshot.put("weightKg", profile.getWeightKg() == null
+                ? null
+                : profile.getWeightKg().stripTrailingZeros().toPlainString());
+        return Collections.unmodifiableMap(snapshot);
+    }
+
+    private boolean profileChanged(WorkoutTemplate template, UserProfile currentProfile) {
+        Map<String, Object> savedSnapshot = template.getProfileSnapshot();
+        return savedSnapshot != null
+                && !savedSnapshot.isEmpty()
+                && !Objects.equals(savedSnapshot, snapshot(currentProfile));
     }
 
     private PlanDetailResponse.PrescriptionDetail toPrescriptionDetail(WorkoutTemplateExercise item) {

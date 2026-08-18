@@ -5,6 +5,7 @@ import com.fitness.domain.WorkoutTemplateStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public record WorkoutTemplateResponse(
         String templateId,
@@ -12,6 +13,8 @@ public record WorkoutTemplateResponse(
         String name,
         OnDemandBodyPart bodyPart,
         List<String> equipment,
+        Map<String, Object> profileSnapshot,
+        boolean profileChanged,
         WorkoutTemplateStatus status,
         int version,
         LocalDateTime createdAt,

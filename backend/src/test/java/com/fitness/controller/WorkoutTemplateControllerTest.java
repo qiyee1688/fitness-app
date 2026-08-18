@@ -139,7 +139,7 @@ class WorkoutTemplateControllerTest {
                 new BigDecimal("7.5"), exercise);
         return new WorkoutTemplateResponse(
                 "template-id", "workout-id", "Chest builder", OnDemandBodyPart.CHEST,
-                List.of("body weight"), WorkoutTemplateStatus.ACTIVE, 0,
+                List.of("body weight"), java.util.Map.of(), false, WorkoutTemplateStatus.ACTIVE, 0,
                 null, null, List.of(item));
     }
 }

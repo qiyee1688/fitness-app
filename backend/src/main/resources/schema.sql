@@ -209,6 +209,7 @@ CREATE TABLE workout_templates (
     name VARCHAR(80) NOT NULL,
     body_part on_demand_body_part_enum NOT NULL,
     equipment_snapshot JSONB NOT NULL,
+    profile_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
     status workout_template_status_enum NOT NULL DEFAULT 'ACTIVE',
     version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

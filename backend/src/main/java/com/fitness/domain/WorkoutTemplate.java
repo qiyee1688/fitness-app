@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class WorkoutTemplate {
@@ -13,6 +14,7 @@ public class WorkoutTemplate {
     private String name;
     private OnDemandBodyPart bodyPart;
     private List<String> equipmentSnapshot;
+    private Map<String, Object> profileSnapshot;
     private WorkoutTemplateStatus status;
     private int version;
     private LocalDateTime createdAt;
