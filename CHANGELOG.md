@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-08-18 会话 18：WorkoutTemplate 替换 Plan Workout 收口
+
+### 创建的文件
+
+- **`backend/src/main/java/com/fitness/config/WorkoutTemplateSchemaMigration.java`** — 为已有数据库幂等应用 WorkoutTemplate schema
+- **`backend/src/test/java/com/fitness/config/WorkoutTemplateSchemaMigrationTest.java`** — 覆盖迁移跳过与应用路径
+
+### 主要修改
+
+- Plan 详情返回 `version` 与 WorkoutStatus，前端只对当前或未来的 `READY` Workout 展示替换入口。
+- 用 WorkoutTemplate 替换 Plan Workout 时复制模板的部位与器械快照，保留原 Workout、替换链和处方快照。
+- 保持 Plan 乐观锁、同事务替换和统一错误响应；WorkoutTemplate migration、索引和 trigger 支持重复执行。
+- 增加替换响应与快照字段的 Service/Controller 回归覆盖。
+
+### 验证
+
+- `mvn test`：81 tests 全部通过，JaCoCo 指令覆盖率 84%。
+- `npm run build`：生产构建成功，仅保留既有的大 chunk 警告。
+- 浏览器视觉走查未执行：当前浏览器安全策略拒绝访问本地 localhost 页面。
+
+### 下一步行动
+
+- [ ] 进入 #27 NutritionTip：Rule seed、MacroTarget 快照和 Plan Workout 展示
+
+---
+
 ## 2026-08-05 会话 17：Plan Lifecycle Automation
 
 ### 创建的文件

@@ -19,6 +19,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,6 +53,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.username").value("demo"))
                 .andExpect(jsonPath("$.data.fitnessLevel").value("BEGINNER"))
+                .andExpect(jsonPath("$.data.weightKg").value(60.0))
                 .andExpect(jsonPath("$.data.availableEquipment[0]").value("body weight"));
 
         verify(userService).getProfileByUsername("demo");
@@ -79,7 +81,8 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.goal").value("GENERAL_FITNESS"))
-                .andExpect(jsonPath("$.data.daysPerWeek").value(3));
+                .andExpect(jsonPath("$.data.daysPerWeek").value(3))
+                .andExpect(jsonPath("$.data.weightKg").value(60.0));
 
         verify(userService).saveProfile(request);
     }
@@ -109,7 +112,8 @@ class UserControllerTest {
                 FitnessLevel.BEGINNER,
                 Goal.GENERAL_FITNESS,
                 3,
-                List.of("body weight")
+                List.of("body weight"),
+                new BigDecimal("60.0")
         );
     }
 
@@ -123,6 +127,7 @@ class UserControllerTest {
                 Goal.GENERAL_FITNESS,
                 3,
                 List.of("body weight"),
+                new BigDecimal("60.0"),
                 null,
                 null
         );

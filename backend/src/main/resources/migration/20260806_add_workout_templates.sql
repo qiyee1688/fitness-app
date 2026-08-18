@@ -1,6 +1,16 @@
-CREATE TYPE workout_template_status_enum AS ENUM ('ACTIVE', 'NEEDS_REPAIR');
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'workout_template_status_enum'
+    ) THEN
+        CREATE TYPE workout_template_status_enum AS ENUM ('ACTIVE', 'NEEDS_REPAIR');
+    END IF;
+END
+$$;
 
-CREATE TABLE workout_templates (
+CREATE TABLE IF NOT EXISTS workout_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     source_workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE RESTRICT,
@@ -14,7 +24,7 @@ CREATE TABLE workout_templates (
     CONSTRAINT uq_template_source_workout UNIQUE (owner_user_id, source_workout_id)
 );
 
-CREATE TABLE workout_template_exercises (
+CREATE TABLE IF NOT EXISTS workout_template_exercises (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id UUID NOT NULL REFERENCES workout_templates(id) ON DELETE CASCADE,
     exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
@@ -28,9 +38,20 @@ CREATE TABLE workout_template_exercises (
     CONSTRAINT uq_template_exercise_sequence UNIQUE (template_id, sequence)
 );
 
-CREATE INDEX idx_workout_templates_owner_status ON workout_templates(owner_user_id, status);
-CREATE INDEX idx_workout_template_exercises_template_id ON workout_template_exercises(template_id);
-CREATE INDEX idx_workout_template_exercises_exercise_id ON workout_template_exercises(exercise_id);
+CREATE INDEX IF NOT EXISTS idx_workout_templates_owner_status ON workout_templates(owner_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_workout_template_exercises_template_id ON workout_template_exercises(template_id);
+CREATE INDEX IF NOT EXISTS idx_workout_template_exercises_exercise_id ON workout_template_exercises(exercise_id);
 
-CREATE TRIGGER update_workout_templates_updated_at BEFORE UPDATE ON workout_templates
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'update_workout_templates_updated_at'
+          AND tgrelid = 'workout_templates'::regclass
+    ) THEN
+        CREATE TRIGGER update_workout_templates_updated_at BEFORE UPDATE ON workout_templates
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END
+$$;

@@ -60,7 +60,7 @@ class PlanControllerTest {
     void currentReturnsPlanDetail() throws Exception {
         PlanDetailResponse response = new PlanDetailResponse(
                 "plan-id", PlanStatus.ACTIVE, LocalDate.of(2026, 8, 12),
-                LocalDate.of(2026, 10, 6), 8, Map.of("daysPerWeek", 4), List.of());
+                LocalDate.of(2026, 10, 6), 2, 8, Map.of("daysPerWeek", 4), List.of());
         when(planService.getActivePlan("demo")).thenReturn(response);
 
         mockMvc.perform(get("/plans/current").param("username", "demo"))

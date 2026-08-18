@@ -21,6 +21,7 @@
         <result property="daysPerWeek" column="days_per_week"/>
         <result property="availableEquipment" column="available_equipment"
                 typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="weightKg" column="weight_kg"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -47,13 +48,14 @@
 
     <insert id="insertProfile" parameterType="com.fitness.domain.UserProfile">
         INSERT INTO user_profiles (
-            user_id, fitness_level, goal, days_per_week, available_equipment
+            user_id, fitness_level, goal, days_per_week, available_equipment, weight_kg
         ) VALUES (
             #{userId}::uuid,
             #{fitnessLevel}::fitness_level_enum,
             #{goal}::goal_enum,
             #{daysPerWeek},
-            #{availableEquipment, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb
+            #{availableEquipment, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{weightKg}
         )
     </insert>
 
@@ -62,7 +64,8 @@
         SET fitness_level = #{fitnessLevel}::fitness_level_enum,
             goal = #{goal}::goal_enum,
             days_per_week = #{daysPerWeek},
-            available_equipment = #{availableEquipment, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb
+            available_equipment = #{availableEquipment, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            weight_kg = #{weightKg}
         WHERE id = #{id}::uuid
     </update>
 

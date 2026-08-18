@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.NutritionMapper">
+    <resultMap id="NutritionRuleResultMap" type="com.fitness.domain.NutritionRule">
+        <id property="id" column="id"/>
+        <result property="businessKey" column="business_key"/>
+        <result property="goal" column="goal"/>
+        <result property="focus" column="focus"/>
+        <result property="timing" column="timing"/>
+        <result property="formula" column="formula"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="note" column="note"/>
+        <result property="noteEn" column="note_en"/>
+        <result property="version" column="version"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="NutritionTipResultMap" type="com.fitness.domain.NutritionTip">
+        <id property="id" column="id"/>
+        <result property="workoutId" column="workout_id"/>
+        <result property="timing" column="timing"/>
+        <result property="macroTargets" column="macro_targets"
+                typeHandler="com.fitness.config.JsonbTypeHandler"/>
+        <result property="note" column="note"/>
+        <result property="noteEn" column="note_en"/>
+        <result property="ruleId" column="rule_id"/>
+        <result property="ruleVersion" column="rule_version"/>
+        <result property="weightKgSnapshot" column="weight_kg_snapshot"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findMatchingRule" resultMap="NutritionRuleResultMap">
+        SELECT *
+        FROM nutrition_rules
+        WHERE goal = #{goal}::goal_enum
+          AND timing = #{timing}::nutrition_timing_enum
+          AND enabled = TRUE
+          AND (
+            <choose>
+                <when test="focus != null">
+                    focus = #{focus}::training_day_focus_enum OR focus IS NULL
+                </when>
+                <otherwise>
+                    focus IS NULL
+                </otherwise>
+            </choose>
+          )
+        ORDER BY CASE WHEN focus IS NULL THEN 1 ELSE 0 END, version DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insertTip" parameterType="com.fitness.domain.NutritionTip">
+        INSERT INTO nutrition_tips (
+            id, workout_id, timing, macro_targets, note, note_en,
+            rule_id, rule_version, weight_kg_snapshot
+        ) VALUES (
+            #{id}::uuid,
+            #{workoutId}::uuid,
+            #{timing}::nutrition_timing_enum,
+            #{macroTargets, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+            #{note},
+            #{noteEn},
+            #{ruleId}::uuid,
+            #{ruleVersion},
+            #{weightKgSnapshot}
+        )
+        ON CONFLICT (workout_id, timing) DO NOTHING
+    </insert>
+
+    <select id="findByWorkoutId" resultMap="NutritionTipResultMap">
+        SELECT * FROM nutrition_tips
+        WHERE workout_id = #{workoutId}::uuid
+        ORDER BY CASE timing
+            WHEN 'PRE_WORKOUT'::nutrition_timing_enum THEN 1
+            WHEN 'POST_WORKOUT'::nutrition_timing_enum THEN 2
+            ELSE 3
+        END
+    </select>
+
+    <select id="findByPlanId" resultMap="NutritionTipResultMap">
+        SELECT nt.*
+        FROM nutrition_tips nt
+        JOIN workouts w ON w.id = nt.workout_id
+        WHERE w.plan_id = #{planId}::uuid
+          AND w.status != 'REPLACED'::workout_status_enum
+        ORDER BY w.day_number, CASE nt.timing
+            WHEN 'PRE_WORKOUT'::nutrition_timing_enum THEN 1
+            WHEN 'POST_WORKOUT'::nutrition_timing_enum THEN 2
+            ELSE 3
+        END
+    </select>
+</mapper>

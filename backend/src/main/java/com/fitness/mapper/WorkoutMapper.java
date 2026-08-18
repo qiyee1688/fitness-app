@@ -17,6 +17,8 @@ public interface WorkoutMapper {
 
     Workout findOwnedById(@Param("id") String id, @Param("ownerUserId") String ownerUserId);
 
+    Workout findAnyOwnedById(@Param("id") String id, @Param("ownerUserId") String ownerUserId);
+
     List<Prescription> findPrescriptionsByWorkoutId(@Param("workoutId") String workoutId);
 
     int transitionStatus(

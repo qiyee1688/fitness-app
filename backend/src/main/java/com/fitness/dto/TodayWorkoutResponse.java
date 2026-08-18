@@ -14,6 +14,20 @@ public record TodayWorkoutResponse(
         TrainingDayFocus focus,
         LocalDateTime completedAt,
         boolean alreadyCompleted,
-        List<PlanDetailResponse.PrescriptionDetail> prescriptions
+        List<PlanDetailResponse.PrescriptionDetail> prescriptions,
+        List<NutritionTipResponse> nutritionTips
 ) {
+    public TodayWorkoutResponse(
+            String planId,
+            String workoutId,
+            int dayNumber,
+            LocalDate scheduledDate,
+            TrainingDayFocus focus,
+            LocalDateTime completedAt,
+            boolean alreadyCompleted,
+            List<PlanDetailResponse.PrescriptionDetail> prescriptions
+    ) {
+        this(planId, workoutId, dayNumber, scheduledDate, focus, completedAt,
+                alreadyCompleted, prescriptions, List.of());
+    }
 }

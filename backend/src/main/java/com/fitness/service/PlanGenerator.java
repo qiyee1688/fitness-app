@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -152,13 +153,16 @@ public class PlanGenerator {
     }
 
     private Map<String, Object> snapshot(UserProfile profile) {
-        return Map.of(
-                "profileId", profile.getId(),
-                "fitnessLevel", profile.getFitnessLevel().name(),
-                "goal", profile.getGoal().name(),
-                "daysPerWeek", profile.getDaysPerWeek(),
-                "availableEquipment", List.copyOf(profile.getAvailableEquipment())
-        );
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("profileId", profile.getId());
+        snapshot.put("fitnessLevel", profile.getFitnessLevel().name());
+        snapshot.put("goal", profile.getGoal().name());
+        snapshot.put("daysPerWeek", profile.getDaysPerWeek());
+        snapshot.put("availableEquipment", List.copyOf(profile.getAvailableEquipment()));
+        if (profile.getWeightKg() != null) {
+            snapshot.put("weightKg", profile.getWeightKg());
+        }
+        return Map.copyOf(snapshot);
     }
 
     private int setsFor(FitnessLevel level) {

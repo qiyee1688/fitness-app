@@ -68,6 +68,11 @@
           AND source = 'ON_DEMAND'::workout_source_enum
     </select>
 
+    <select id="findAnyOwnedById" resultMap="WorkoutResultMap">
+        SELECT * FROM workouts
+        WHERE id = #{id}::uuid AND owner_user_id = #{ownerUserId}::uuid
+    </select>
+
     <select id="findPrescriptionsByWorkoutId" resultMap="PrescriptionResultMap">
         SELECT p.id AS prescription_id, p.workout_id, p.exercise_id, p.sequence,
                p.sets, p.reps, p.load, p.load_type, p.rpe,

@@ -13,6 +13,7 @@ public enum ErrorCode {
     PRESCRIPTION_NOT_FOUND(40407, "Exercise is not available in this workout", HttpStatus.NOT_FOUND),
     ON_DEMAND_WORKOUT_NOT_FOUND(40408, "On-demand workout not found", HttpStatus.NOT_FOUND),
     WORKOUT_TEMPLATE_NOT_FOUND(40409, "Workout template not found", HttpStatus.NOT_FOUND),
+    WORKOUT_RESOURCE_NOT_FOUND(40410, "Workout not found", HttpStatus.NOT_FOUND),
     AUTHENTICATION_REQUIRED(40101, "Authentication required", HttpStatus.UNAUTHORIZED),
     PLAN_GENERATION_FAILED(42201, "No exercises available for plan generation", HttpStatus.UNPROCESSABLE_ENTITY),
     ON_DEMAND_GENERATION_FAILED(

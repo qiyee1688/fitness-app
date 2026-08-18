@@ -5,6 +5,7 @@ import com.fitness.domain.ExerciseFeedback;
 import com.fitness.domain.FeedbackType;
 import com.fitness.domain.FitnessLevel;
 import com.fitness.domain.Goal;
+import com.fitness.domain.NutritionTiming;
 import com.fitness.domain.Plan;
 import com.fitness.domain.PlanStatus;
 import com.fitness.domain.Prescription;
@@ -24,6 +25,7 @@ import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
 import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.dto.NutritionTipResponse;
 import com.fitness.dto.ExerciseFeedbackResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
@@ -59,12 +61,14 @@ class PlanServiceTest {
     @Mock private ExerciseMapper exerciseMapper;
     @Mock private PlanMapper planMapper;
     @Mock private WorkoutTemplateMapper templateMapper;
+    @Mock private NutritionService nutritionService;
 
     private PlanService planService;
 
     @BeforeEach
     void setUp() {
-        planService = new PlanService(userMapper, exerciseMapper, planMapper, new PlanGenerator(), templateMapper);
+        planService = new PlanService(
+                userMapper, exerciseMapper, planMapper, new PlanGenerator(), templateMapper, nutritionService);
     }
 
     @Test
@@ -90,6 +94,8 @@ class PlanServiceTest {
         verify(planMapper).insertPlan(any(Plan.class));
         verify(planMapper, times(16)).insertWorkout(any());
         verify(planMapper, times(80)).insertPrescription(any());
+        verify(nutritionService, times(16)).generateForWorkout(
+                any(Workout.class), org.mockito.ArgumentMatchers.same(profile));
     }
 
     @Test
@@ -104,7 +110,7 @@ class PlanServiceTest {
         when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
 
         GeneratedPlanResponse response = planService.generatePlan(
-                new GeneratePlanRequest("demo", LocalDate.of(2026, 8, 10)));
+                new GeneratePlanRequest("demo", LocalDate.now().plusDays(1)));
 
         assertThat(response.status()).isEqualTo(PlanStatus.SCHEDULED);
         verify(planMapper, never()).supersedeActive(any(), any(Integer.class));
@@ -258,6 +264,8 @@ class PlanServiceTest {
         when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
         when(planMapper.findWorkoutsByPlanId(active.getId())).thenReturn(List.of(workout));
         when(planMapper.findPrescriptionsByPlanId(active.getId())).thenReturn(List.of(prescription));
+        when(nutritionService.listByPlanId(active.getId()))
+                .thenReturn(Map.of(workout.getId(), List.of(tipResponse(workout.getId()))));
 
         PlanDetailResponse response = planService.getActivePlan("demo");
 
@@ -267,6 +275,8 @@ class PlanServiceTest {
             assertThat(detail.scheduledDate()).isEqualTo(LocalDate.of(2026, 8, 19));
             assertThat(detail.prescriptions()).singleElement().satisfies(item ->
                     assertThat(item.exercise().id()).isEqualTo("core"));
+            assertThat(detail.nutritionTips()).singleElement()
+                    .satisfies(tip -> assertThat(tip.timing()).isEqualTo(NutritionTiming.PRE_WORKOUT));
         });
     }
 
@@ -292,6 +302,8 @@ class PlanServiceTest {
         when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
         when(planMapper.findWorkoutByPlanIdAndDayNumber(active.getId(), 8)).thenReturn(workout);
         when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of(prescription));
+        when(nutritionService.listOwnedWorkoutTips(workout.getId()))
+                .thenReturn(List.of(tipResponse(workout.getId())));
 
         TodayWorkoutResponse response = planService.getTodayWorkout(
                 "demo", LocalDate.of(2026, 8, 19));
@@ -300,6 +312,8 @@ class PlanServiceTest {
         assertThat(response.scheduledDate()).isEqualTo(LocalDate.of(2026, 8, 19));
         assertThat(response.prescriptions()).singleElement().satisfies(item ->
                 assertThat(item.exercise().id()).isEqualTo("core"));
+        assertThat(response.nutritionTips()).singleElement()
+                .satisfies(tip -> assertThat(tip.tipId()).isEqualTo("tip-id"));
     }
 
     @Test
@@ -438,13 +452,16 @@ class PlanServiceTest {
         assertThat(response.originalWorkoutId()).isEqualTo(original.getId());
         assertThat(response.replacementWorkoutId()).isNotBlank();
         assertThat(response.dayNumber()).isEqualTo(8);
+        assertThat(response.workout().status()).isEqualTo(WorkoutStatus.READY);
         verify(planMapper).bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7);
         verify(planMapper).markWorkoutReplaced(original.getId(), active.getId());
         verify(planMapper).insertWorkout(org.mockito.ArgumentMatchers.argThat(workout ->
                 workout.getSource() == WorkoutSource.TEMPLATE_REPLACEMENT
                         && workout.getStatus() == WorkoutStatus.READY
                         && workout.getReplacedWorkoutId().equals(original.getId())
-                        && workout.getDayNumber() == original.getDayNumber()));
+                        && workout.getDayNumber() == original.getDayNumber()
+                        && workout.getRequestedBodyPart() == template.getBodyPart()
+                        && workout.getEquipmentSnapshot().equals(template.getEquipmentSnapshot())));
         verify(planMapper).insertPrescription(org.mockito.ArgumentMatchers.argThat(prescription ->
                 prescription.getExerciseId().equals(templateExercise.getExerciseId())
                         && prescription.getSets() == templateExercise.getSets()
@@ -528,9 +545,17 @@ class PlanServiceTest {
         return prescription;
     }
 
+    private NutritionTipResponse tipResponse(String workoutId) {
+        return new NutritionTipResponse(
+                "tip-id", workoutId, NutritionTiming.PRE_WORKOUT, null,
+                "训练前补充能量", "Fuel before training", "rule-id", 1, new BigDecimal("60.0"));
+    }
+
     private WorkoutTemplate workoutTemplate() {
         WorkoutTemplate template = new WorkoutTemplate();
         template.setId("77777777-7777-7777-7777-777777777777");
+        template.setBodyPart(com.fitness.domain.OnDemandBodyPart.WAIST);
+        template.setEquipmentSnapshot(List.of("body weight"));
         template.setStatus(WorkoutTemplateStatus.ACTIVE);
         return template;
     }

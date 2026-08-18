@@ -51,6 +51,18 @@
         />
       </el-form-item>
 
+      <el-form-item :label="t('weightKg')">
+        <el-input-number
+          v-model="form.weightKg"
+          :min="30"
+          :max="300"
+          :step="0.1"
+          :precision="1"
+          controls-position="right"
+        />
+        <span class="form-hint">{{ t('weightKgHint') }}</span>
+      </el-form-item>
+
       <el-form-item :label="t('availableEquipment')">
         <el-checkbox-group v-model="form.availableEquipment" class="equipment-grid">
           <el-checkbox-button
@@ -96,6 +108,7 @@ const form = reactive({
   goal: 'GENERAL_FITNESS',
   daysPerWeek: 3,
   availableEquipment: ['body weight'],
+  weightKg: null,
 })
 
 const fitness_level_options = computed(() => [
@@ -158,6 +171,7 @@ async function submit_profile() {
       goal: form.goal,
       daysPerWeek: form.daysPerWeek,
       availableEquipment: form.availableEquipment,
+      weightKg: form.weightKg,
     })
     apply_profile(profile)
     success_message.value = t('profileSaved')
@@ -175,6 +189,7 @@ function apply_profile(profile) {
   form.availableEquipment = profile.availableEquipment?.length
     ? [...profile.availableEquipment]
     : ['body weight']
+  form.weightKg = profile.weightKg ?? null
 }
 
 onMounted(load_profile)

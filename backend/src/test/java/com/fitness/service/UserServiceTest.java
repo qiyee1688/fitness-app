@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,6 +55,7 @@ class UserServiceTest {
         assertThat(response.fitnessLevel()).isEqualTo(FitnessLevel.BEGINNER);
         assertThat(response.goal()).isEqualTo(Goal.FAT_LOSS);
         assertThat(response.availableEquipment()).containsExactly("body weight", "dumbbell");
+        assertThat(response.weightKg()).isEqualByComparingTo("60.0");
         verify(userMapper).insertUser(any(User.class));
         verify(userMapper).insertProfile(any(UserProfile.class));
     }
@@ -75,6 +77,7 @@ class UserServiceTest {
         assertThat(response.fitnessLevel()).isEqualTo(FitnessLevel.INTERMEDIATE);
         assertThat(response.goal()).isEqualTo(Goal.MUSCLE_GAIN);
         assertThat(response.daysPerWeek()).isEqualTo(4);
+        assertThat(response.weightKg()).isEqualByComparingTo("60.0");
         verify(userMapper).updateProfile(existingProfile);
     }
 
@@ -87,7 +90,9 @@ class UserServiceTest {
     }
 
     private UserProfileRequest createRequest(FitnessLevel fitnessLevel, Goal goal, int daysPerWeek) {
-        return new UserProfileRequest("demo", "demo@fitness.local", fitnessLevel, goal, daysPerWeek, List.of("body weight", "dumbbell"));
+        return new UserProfileRequest(
+                "demo", "demo@fitness.local", fitnessLevel, goal, daysPerWeek,
+                List.of("body weight", "dumbbell"), new BigDecimal("60.0"));
     }
 
     private User createUser() {
@@ -106,6 +111,7 @@ class UserServiceTest {
         profile.setGoal(goal);
         profile.setDaysPerWeek(daysPerWeek);
         profile.setAvailableEquipment(List.of("body weight", "dumbbell"));
+        profile.setWeightKg(new BigDecimal("60.0"));
         return profile;
     }
 }

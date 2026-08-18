@@ -294,10 +294,13 @@
 
     <insert id="insertWorkout" parameterType="com.fitness.domain.Workout">
         INSERT INTO workouts (
-            id, owner_user_id, plan_id, replaced_workout_id, day_number, focus, source, status
+            id, owner_user_id, plan_id, replaced_workout_id, day_number, focus,
+            requested_body_part, equipment_snapshot, source, status
         )
         VALUES (#{id}::uuid, #{ownerUserId}::uuid, #{planId}::uuid,
                 #{replacedWorkoutId}::uuid, #{dayNumber}, #{focus}::training_day_focus_enum,
+                #{requestedBodyPart}::on_demand_body_part_enum,
+                #{equipmentSnapshot, typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
                 #{source}::workout_source_enum, #{status}::workout_status_enum)
     </insert>
 

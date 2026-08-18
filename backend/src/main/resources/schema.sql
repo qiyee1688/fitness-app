@@ -62,6 +62,7 @@ CREATE TABLE user_profiles (
     goal goal_enum NOT NULL,
     days_per_week INT NOT NULL CHECK (days_per_week BETWEEN 2 AND 6),
     available_equipment JSONB NOT NULL,
+    weight_kg DECIMAL(5, 1) CHECK (weight_kg BETWEEN 30.0 AND 300.0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_profile FOREIGN KEY (user_id) REFERENCES users(id)
@@ -130,6 +131,47 @@ CREATE UNIQUE INDEX uq_workouts_active_plan_day
 CREATE INDEX idx_workouts_owner_source_status ON workouts(owner_user_id, source, status);
 CREATE INDEX idx_workouts_expires_at ON workouts(expires_at) WHERE status = 'DRAFT';
 CREATE INDEX idx_workouts_completed_at ON workouts(completed_at);
+
+-- ============================================================
+-- Tables: nutrition_rules / nutrition_tips (训练营养小贴士)
+-- ============================================================
+CREATE TYPE nutrition_timing_enum AS ENUM ('PRE_WORKOUT', 'POST_WORKOUT', 'DAILY');
+
+CREATE TABLE nutrition_rules (
+    id UUID PRIMARY KEY,
+    business_key VARCHAR(100) NOT NULL UNIQUE,
+    goal goal_enum NOT NULL,
+    focus training_day_focus_enum,
+    timing nutrition_timing_enum NOT NULL,
+    formula JSONB NOT NULL,
+    note TEXT NOT NULL,
+    note_en TEXT NOT NULL,
+    version INT NOT NULL DEFAULT 1,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uq_nutrition_rules_enabled_condition
+    ON nutrition_rules (goal, COALESCE(focus::text, '*'), timing)
+    WHERE enabled = TRUE;
+CREATE INDEX idx_nutrition_rules_goal_timing ON nutrition_rules(goal, timing, enabled);
+
+CREATE TABLE nutrition_tips (
+    id UUID PRIMARY KEY,
+    workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+    timing nutrition_timing_enum NOT NULL,
+    macro_targets JSONB NOT NULL,
+    note TEXT,
+    note_en TEXT,
+    rule_id UUID NOT NULL REFERENCES nutrition_rules(id) ON DELETE RESTRICT,
+    rule_version INT NOT NULL,
+    weight_kg_snapshot DECIMAL(5, 1),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_nutrition_tip_workout_timing UNIQUE (workout_id, timing)
+);
+
+CREATE INDEX idx_nutrition_tips_workout_id ON nutrition_tips(workout_id);
 
 -- ============================================================
 -- Table: prescriptions (动作处方)

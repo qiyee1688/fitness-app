@@ -47,6 +47,7 @@ public class UserService {
             profile.setGoal(request.goal());
             profile.setDaysPerWeek(request.daysPerWeek());
             profile.setAvailableEquipment(request.availableEquipment());
+            profile.setWeightKg(request.weightKg());
             userMapper.insertProfile(profile);
             profile = userMapper.findProfileByUserId(user.getId());
         } else {
@@ -54,6 +55,7 @@ public class UserService {
             profile.setGoal(request.goal());
             profile.setDaysPerWeek(request.daysPerWeek());
             profile.setAvailableEquipment(request.availableEquipment());
+            profile.setWeightKg(request.weightKg());
             userMapper.updateProfile(profile);
             profile = userMapper.findProfileByUserId(user.getId());
         }
@@ -91,6 +93,7 @@ public class UserService {
                 profile.getGoal(),
                 profile.getDaysPerWeek(),
                 profile.getAvailableEquipment(),
+                profile.getWeightKg(),
                 profile.getCreatedAt(),
                 profile.getUpdatedAt()
         );

@@ -2,6 +2,7 @@ package com.fitness.domain;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,6 +14,7 @@ public class UserProfile {
     private Goal goal;
     private int daysPerWeek;
     private List<String> availableEquipment;
+    private BigDecimal weightKg;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

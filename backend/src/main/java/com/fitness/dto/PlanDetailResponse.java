@@ -3,6 +3,7 @@ package com.fitness.dto;
 import com.fitness.domain.LoadType;
 import com.fitness.domain.PlanStatus;
 import com.fitness.domain.TrainingDayFocus;
+import com.fitness.domain.WorkoutStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ public record PlanDetailResponse(
         PlanStatus status,
         LocalDate startDate,
         LocalDate endDate,
+        int version,
         int totalWeeks,
         Map<String, Object> profileSnapshot,
         List<WorkoutDetail> workouts
@@ -24,8 +26,32 @@ public record PlanDetailResponse(
             int weekNumber,
             LocalDate scheduledDate,
             TrainingDayFocus focus,
-            List<PrescriptionDetail> prescriptions
+        List<PrescriptionDetail> prescriptions,
+            WorkoutStatus status,
+            List<NutritionTipResponse> nutritionTips
     ) {
+        public WorkoutDetail(
+                String workoutId,
+                int dayNumber,
+                int weekNumber,
+                LocalDate scheduledDate,
+                TrainingDayFocus focus,
+                List<PrescriptionDetail> prescriptions
+        ) {
+            this(workoutId, dayNumber, weekNumber, scheduledDate, focus, prescriptions, null, List.of());
+        }
+
+        public WorkoutDetail(
+                String workoutId,
+                int dayNumber,
+                int weekNumber,
+                LocalDate scheduledDate,
+                TrainingDayFocus focus,
+                List<PrescriptionDetail> prescriptions,
+                WorkoutStatus status
+        ) {
+            this(workoutId, dayNumber, weekNumber, scheduledDate, focus, prescriptions, status, List.of());
+        }
     }
 
     public record PrescriptionDetail(

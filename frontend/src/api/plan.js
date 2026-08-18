@@ -15,3 +15,7 @@ export function complete_workout(workout_id) {
 export function submit_exercise_feedback(workout_id, exercise_id, feedback) {
   return api_post(`/plans/workouts/${workout_id}/exercises/${exercise_id}/feedback`, feedback)
 }
+
+export function replace_plan_workout(plan_id, workout_id, payload) {
+  return api_post(`/plans/${plan_id}/workouts/${workout_id}/replace`, payload)
+}

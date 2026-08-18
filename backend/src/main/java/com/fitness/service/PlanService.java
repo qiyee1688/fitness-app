@@ -21,6 +21,7 @@ import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
 import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
+import com.fitness.dto.NutritionTipResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
 import com.fitness.exception.BusinessException;
@@ -29,6 +30,7 @@ import com.fitness.mapper.ExerciseMapper;
 import com.fitness.mapper.PlanMapper;
 import com.fitness.mapper.UserMapper;
 import com.fitness.mapper.WorkoutTemplateMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,19 +55,23 @@ public class PlanService {
     private final PlanMapper planMapper;
     private final PlanGenerator planGenerator;
     private final WorkoutTemplateMapper templateMapper;
+    private final NutritionService nutritionService;
 
+    @Autowired
     public PlanService(
             UserMapper userMapper,
             ExerciseMapper exerciseMapper,
             PlanMapper planMapper,
             PlanGenerator planGenerator,
-            WorkoutTemplateMapper templateMapper
+            WorkoutTemplateMapper templateMapper,
+            NutritionService nutritionService
     ) {
         this.userMapper = userMapper;
         this.exerciseMapper = exerciseMapper;
         this.planMapper = planMapper;
         this.planGenerator = planGenerator;
         this.templateMapper = templateMapper;
+        this.nutritionService = nutritionService;
     }
 
     public GeneratedPlanResponse generatePlan(GeneratePlanRequest request) {
@@ -97,7 +103,7 @@ public class PlanService {
         Plan plan = planGenerator.generate(profile, candidates, startDate);
         plan.setStatus(initialStatus);
         plan.setStatusChangedAt(LocalDateTime.now());
-        persistPlan(plan);
+        persistPlan(plan, profile);
         return toResponse(plan);
     }
 
@@ -163,13 +169,21 @@ public class PlanService {
         Map<String, List<Prescription>> prescriptionsByWorkout =
                 planMapper.findPrescriptionsByPlanId(plan.getId()).stream()
                         .collect(Collectors.groupingBy(Prescription::getWorkoutId));
+        Map<String, List<NutritionTipResponse>> tipsByWorkout = nutritionService.listByPlanId(plan.getId());
+        if (tipsByWorkout == null) {
+            tipsByWorkout = Map.of();
+        }
+        Map<String, List<NutritionTipResponse>> finalTipsByWorkout = tipsByWorkout;
         List<PlanDetailResponse.WorkoutDetail> workoutDetails = workouts.stream()
                 .map(workout -> toWorkoutDetail(
-                        plan, workout, prescriptionsByWorkout.getOrDefault(workout.getId(), List.of())))
+                        plan,
+                        workout,
+                        prescriptionsByWorkout.getOrDefault(workout.getId(), List.of()),
+                        finalTipsByWorkout.getOrDefault(workout.getId(), List.of())))
                 .toList();
         return new PlanDetailResponse(
                 plan.getId(), plan.getStatus(), plan.getStartDate(), plan.getEndDate(),
-                PLAN_WEEKS, plan.getProfileSnapshot(), workoutDetails);
+                plan.getVersion(), PLAN_WEEKS, plan.getProfileSnapshot(), workoutDetails);
     }
 
 
@@ -349,6 +363,8 @@ public class PlanService {
         replacement.setReplacedWorkoutId(original.getId());
         replacement.setDayNumber(original.getDayNumber());
         replacement.setFocus(original.getFocus());
+        replacement.setRequestedBodyPart(template.getBodyPart());
+        replacement.setEquipmentSnapshot(template.getEquipmentSnapshot());
         replacement.setSource(WorkoutSource.TEMPLATE_REPLACEMENT);
         replacement.setStatus(WorkoutStatus.READY);
         planMapper.insertWorkout(replacement);
@@ -357,7 +373,7 @@ public class PlanService {
         }
 
         List<Prescription> prescriptions = planMapper.findPrescriptionsByWorkoutId(replacement.getId());
-        PlanDetailResponse.WorkoutDetail detail = toWorkoutDetail(plan, replacement, prescriptions);
+        PlanDetailResponse.WorkoutDetail detail = toWorkoutDetail(plan, replacement, prescriptions, List.of());
         return new ReplaceWorkoutWithTemplateResponse(
                 plan.getId(), original.getId(), replacement.getId(), replacement.getDayNumber(), detail);
     }
@@ -405,15 +421,16 @@ public class PlanService {
         child.setParentPlanId(parent.getId());
         child.setStatus(PlanStatus.ACTIVE);
         child.setStatusChangedAt(changedAt);
-        persistPlan(child);
+        persistPlan(child, profile);
         return child;
     }
 
-    private void persistPlan(Plan plan) {
+    private void persistPlan(Plan plan, UserProfile profile) {
         planMapper.insertPlan(plan);
         for (Workout workout : plan.getWorkouts()) {
             planMapper.insertWorkout(workout);
             workout.getPrescriptions().forEach(planMapper::insertPrescription);
+            nutritionService.generateForWorkout(workout, profile);
         }
     }
 
@@ -452,15 +469,20 @@ public class PlanService {
                 planMapper.findPrescriptionsByWorkoutId(workout.getId()).stream()
                         .map(this::toPrescriptionDetail)
                         .toList();
+        List<NutritionTipResponse> nutritionTips = nutritionService.listOwnedWorkoutTips(workout.getId());
+        if (nutritionTips == null) {
+            nutritionTips = List.of();
+        }
         return new TodayWorkoutResponse(
                 plan.getId(), workout.getId(), workout.getDayNumber(), scheduledDate,
-                workout.getFocus(), workout.getCompletedAt(), alreadyCompleted, prescriptions);
+                workout.getFocus(), workout.getCompletedAt(), alreadyCompleted, prescriptions, nutritionTips);
     }
 
     private PlanDetailResponse.WorkoutDetail toWorkoutDetail(
             Plan plan,
             Workout workout,
-            List<Prescription> prescriptions
+            List<Prescription> prescriptions,
+            List<NutritionTipResponse> nutritionTips
     ) {
         List<PlanDetailResponse.PrescriptionDetail> details = prescriptions.stream()
                 .map(prescription -> toPrescriptionDetail(prescription))
@@ -471,7 +493,9 @@ public class PlanService {
                 (workout.getDayNumber() - 1) / 7 + 1,
                 plan.getStartDate().plusDays(workout.getDayNumber() - 1L),
                 workout.getFocus(),
-                details);
+                details,
+                workout.getStatus(),
+                nutritionTips);
     }
 
     private PlanDetailResponse.PrescriptionDetail toPrescriptionDetail(Prescription prescription) {

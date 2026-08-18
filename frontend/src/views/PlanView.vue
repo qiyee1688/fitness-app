@@ -56,6 +56,16 @@
               </div>
             </header>
 
+            <div class="workout-actions">
+              <el-button
+                v-if="can_replace_workout(workout)"
+                size="small"
+                @click="open_replace_dialog(workout)"
+              >
+                {{ t('replaceWithTemplate') }}
+              </el-button>
+            </div>
+
             <div class="prescription-list">
               <router-link
                 v-for="prescription in workout.prescriptions"
@@ -74,10 +84,62 @@
                 </span>
               </router-link>
             </div>
+
+            <NutritionTips :tips="workout.nutritionTips" />
           </article>
         </div>
       </template>
     </template>
+
+    <el-dialog
+      v-model="replace_dialog_visible"
+      :title="t('replaceWithTemplate')"
+      width="520px"
+      @closed="reset_replace_dialog"
+    >
+      <el-alert
+        v-if="templates_error"
+        :title="templates_error"
+        type="error"
+        show-icon
+        :closable="false"
+      />
+      <p class="page-subtitle">{{ t('replaceWorkoutHint') }}</p>
+      <el-empty
+        v-if="available_templates.length === 0"
+        :description="t('noTemplatesAvailable')"
+        class="empty-hint"
+      >
+        <p class="empty-hint">{{ t('loadTemplatesFirst') }}</p>
+      </el-empty>
+      <el-form v-else label-position="top">
+        <el-form-item :label="t('selectTemplate')">
+          <el-select v-model="selected_template_id" placeholder="Template">
+            <el-option
+              v-for="template in available_templates"
+              :key="template.templateId"
+              :label="template.name"
+              :value="template.templateId"
+            />
+          </el-select>
+        </el-form-item>
+        <div class="template-meta" v-if="selected_template">
+          <el-tag effect="plain">{{ body_part_label(selected_template.bodyPart) }}</el-tag>
+          <el-tag effect="plain">{{ template_status_label(selected_template.status) }}</el-tag>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="replace_dialog_visible = false">{{ t('cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :loading="replacing"
+          :disabled="!selected_template_id || available_templates.length === 0"
+          @click="confirm_replace"
+        >
+          {{ t('replaceWithTemplate') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -85,7 +147,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { fetch_current_plan } from '@/api/plan'
+import { fetch_workout_templates } from '@/api/workout'
+import { fetch_current_plan, replace_plan_workout } from '@/api/plan'
+import NutritionTips from '@/components/NutritionTips.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 
@@ -97,9 +161,17 @@ const loading = ref(false)
 const no_active_plan = ref(false)
 const plan = ref(null)
 const selected_week = ref(1)
+const templates = ref([])
+const templates_error = ref('')
+const replace_dialog_visible = ref(false)
+const replacing = ref(false)
+const selected_workout = ref(null)
+const selected_template_id = ref('')
 
 const week_numbers = computed(() => Array.from({ length: plan.value?.totalWeeks || 8 }, (_, index) => index + 1))
 const selected_workouts = computed(() => plan.value?.workouts?.filter((workout) => workout.weekNumber === selected_week.value) || [])
+const available_templates = computed(() => templates.value.filter((template) => template.status === 'ACTIVE'))
+const selected_template = computed(() => available_templates.value.find((template) => template.templateId === selected_template_id.value) || null)
 
 async function load_plan() {
   loading.value = true
@@ -117,6 +189,68 @@ async function load_plan() {
   } finally {
     loading.value = false
   }
+}
+
+async function load_templates() {
+  templates_error.value = ''
+  try {
+    templates.value = await fetch_workout_templates()
+    if (
+      !selected_template_id.value
+      || !available_templates.value.some((template) => template.templateId === selected_template_id.value)
+    ) {
+      selected_template_id.value = ''
+    }
+    if (!selected_template_id.value && available_templates.value.length > 0) {
+      selected_template_id.value = available_templates.value[0].templateId
+    }
+  } catch (exception) {
+    templates_error.value = exception.message
+  }
+}
+
+async function open_replace_dialog(workout) {
+  selected_workout.value = workout
+  replace_dialog_visible.value = true
+  selected_template_id.value = ''
+  await load_templates()
+}
+
+function reset_replace_dialog() {
+  selected_workout.value = null
+  selected_template_id.value = ''
+  templates_error.value = ''
+}
+
+async function confirm_replace() {
+  if (!plan.value || !selected_workout.value || !selected_template_id.value) {
+    return
+  }
+
+  if (!window.confirm(t('replaceWorkoutConfirm'))) {
+    return
+  }
+
+  replacing.value = true
+  error.value = ''
+  try {
+    await replace_plan_workout(plan.value.planId, selected_workout.value.workoutId, {
+      templateId: selected_template_id.value,
+      expectedPlanVersion: plan.value.version,
+    })
+    replace_dialog_visible.value = false
+    selected_workout.value = null
+    await load_plan()
+  } catch (exception) {
+    error.value = exception.message
+  } finally {
+    replacing.value = false
+  }
+}
+
+function can_replace_workout(workout) {
+  return workout.status === 'READY'
+    && workout.scheduledDate >= new Date().toISOString().slice(0, 10)
 }
 
 function format_date(value) {
@@ -144,6 +278,15 @@ function prescription_detail(prescription) {
     details.push(`${prescription.load} ${display_value(prescription.loadType, language.value)}`)
   }
   return details.join(' · ')
+}
+
+function body_part_label(value) {
+  const key = { CHEST: 'chest', BACK: 'backTraining', SHOULDERS: 'shouldersTraining', LEGS: 'legsTraining', WAIST: 'coreTraining' }[value]
+  return t(key || value)
+}
+
+function template_status_label(value) {
+  return t({ ACTIVE: 'templateActive', NEEDS_REPAIR: 'templateNeedsRepair' }[value] || value)
 }
 
 onMounted(load_plan)

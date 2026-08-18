@@ -9,14 +9,14 @@ usage() {
 
 case "${1:-}" in
   start)
-    "$ROOT_DIR/scripts/middleware.sh" start
+#    "$ROOT_DIR/scripts/middleware.sh" start
     "$ROOT_DIR/scripts/backend.sh" start
     "$ROOT_DIR/scripts/frontend.sh" start
     ;;
   stop)
     "$ROOT_DIR/scripts/frontend.sh" stop
     "$ROOT_DIR/scripts/backend.sh" stop
-    "$ROOT_DIR/scripts/middleware.sh" stop
+#    "$ROOT_DIR/scripts/middleware.sh" stop
     ;;
   restart)
     "$ROOT_DIR/scripts/dev.sh" stop

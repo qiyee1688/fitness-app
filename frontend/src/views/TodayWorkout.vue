@@ -81,6 +81,8 @@
           </div>
         </article>
       </section>
+
+      <NutritionTips :tips="workout.nutritionTips" />
     </template>
   </section>
 </template>
@@ -91,6 +93,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage } from 'element-plus'
 import { complete_workout, fetch_today_workout, submit_exercise_feedback } from '@/api/plan'
+import NutritionTips from '@/components/NutritionTips.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 

@@ -346,6 +346,89 @@ h2 {
   background: #ffffff;
 }
 
+.form-hint {
+  margin-left: 12px;
+  color: #66756c;
+  font-size: 13px;
+}
+
+.nutrition-tips {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.nutrition-tips-heading,
+.nutrition-tip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nutrition-tips-heading h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.nutrition-tips-heading .eyebrow {
+  margin-bottom: 4px;
+}
+
+.nutrition-tip-count,
+.nutrition-tip-snapshot,
+.macro-target-basis {
+  color: #66806d;
+  font-size: 12px;
+}
+
+.nutrition-tip-list {
+  display: grid;
+  gap: 10px;
+}
+
+.nutrition-tip {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #dfe5dc;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfcfa;
+}
+
+.macro-target-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+}
+
+.macro-target {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.macro-target-label {
+  color: #66806d;
+  font-size: 12px;
+}
+
+.macro-target strong {
+  font-size: 17px;
+}
+
+.macro-target strong small {
+  color: #314d3a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nutrition-tip-note {
+  margin: 0;
+  color: #314d3a;
+  line-height: 1.55;
+}
+
 .equipment-grid {
   display: flex;
   flex-wrap: wrap;
@@ -534,6 +617,24 @@ h2 {
   gap: 16px;
   border-bottom: 1px solid #e7ebe5;
   padding: 18px;
+}
+
+.workout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.template-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.template-meta .el-tag {
+  margin-right: 0;
 }
 
 .workout-header h2,
