@@ -152,9 +152,12 @@ CREATE TABLE nutrition_rules (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uq_nutrition_rules_enabled_condition
-    ON nutrition_rules (goal, COALESCE(focus::text, '*'), timing)
-    WHERE enabled = TRUE;
+CREATE UNIQUE INDEX uq_nutrition_rules_enabled_no_focus
+    ON nutrition_rules (goal, timing)
+    WHERE enabled = TRUE AND focus IS NULL;
+CREATE UNIQUE INDEX uq_nutrition_rules_enabled_with_focus
+    ON nutrition_rules (goal, focus, timing)
+    WHERE enabled = TRUE AND focus IS NOT NULL;
 CREATE INDEX idx_nutrition_rules_goal_timing ON nutrition_rules(goal, timing, enabled);
 
 CREATE TABLE nutrition_tips (

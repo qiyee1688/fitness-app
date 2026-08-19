@@ -27,9 +27,15 @@ CREATE TABLE IF NOT EXISTS nutrition_rules (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_nutrition_rules_enabled_condition
-    ON nutrition_rules (goal, COALESCE(focus::text, '*'), timing)
-    WHERE enabled = TRUE;
+DROP INDEX IF EXISTS uq_nutrition_rules_enabled_condition;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_nutrition_rules_enabled_no_focus
+    ON nutrition_rules (goal, timing)
+    WHERE enabled = TRUE AND focus IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_nutrition_rules_enabled_with_focus
+    ON nutrition_rules (goal, focus, timing)
+    WHERE enabled = TRUE AND focus IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS nutrition_tips (
     id UUID PRIMARY KEY,
