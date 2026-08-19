@@ -779,7 +779,7 @@ h2 {
 
 .today-prescription-card {
   display: grid;
-  grid-template-columns: 32px minmax(180px, 1fr) minmax(320px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, auto);
   gap: 16px;
   align-items: center;
   border: 1px solid #dfe5dc;
@@ -797,9 +797,17 @@ h2 {
   min-width: 0;
 }
 
+.today-prescription-card .prescription-exercise-link {
+  grid-column: 1;
+}
+
+.today-prescription-card .prescription-metrics {
+  grid-column: 2;
+}
+
 .feedback-controls {
   display: grid;
-  grid-column: 2 / -1;
+  grid-column: 1 / -1;
   grid-template-columns: minmax(150px, 220px) minmax(180px, 1fr) auto;
   gap: 10px;
   padding-top: 12px;
@@ -946,6 +954,11 @@ h2 {
   .prescription-exercise-link {
     grid-column: 1 / -1;
     grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .today-prescription-card .prescription-exercise-link,
+  .today-prescription-card .prescription-metrics {
+    grid-column: 1 / -1;
   }
 
   .prescription-metrics {
