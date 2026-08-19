@@ -25,6 +25,7 @@ public class WorkoutTemplateSchemaMigration implements ApplicationRunner {
                      AND table_name = 'workout_templates'
                      AND column_name = 'profile_snapshot'
                )
+               AND to_regclass('public.exercise_substitutes') IS NOT NULL
             """;
     private static final String MIGRATION_RESOURCE =
             "migration/20260806_add_workout_templates.sql";

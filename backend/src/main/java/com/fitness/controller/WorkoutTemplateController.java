@@ -1,5 +1,6 @@
 package com.fitness.controller;
 
+import com.fitness.domain.Exercise;
 import com.fitness.dto.ApiResponse;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
 import com.fitness.dto.UpdateWorkoutTemplateRequest;
@@ -42,6 +43,15 @@ public class WorkoutTemplateController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<WorkoutTemplateResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(templateService.list()));
+    }
+
+    @GetMapping("/{templateId}/exercises/{templateExerciseId}/substitutes")
+    public ResponseEntity<ApiResponse<List<Exercise>>> substitutes(
+            @PathVariable @NotBlank String templateId,
+            @PathVariable @NotBlank String templateExerciseId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                templateService.listSubstitutes(templateId, templateExerciseId)));
     }
 
     @PatchMapping("/{templateId}")

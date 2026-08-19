@@ -1,11 +1,13 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.ExerciseSubstituteReason;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.Workout;
 import com.fitness.domain.WorkoutStatus;
 import com.fitness.domain.WorkoutTemplate;
 import com.fitness.domain.WorkoutTemplateExercise;
+import com.fitness.domain.WorkoutTemplateRepairReason;
 import com.fitness.domain.WorkoutTemplateStatus;
 import com.fitness.domain.UserProfile;
 import com.fitness.dto.CreateWorkoutTemplateRequest;
@@ -16,6 +18,7 @@ import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.WorkoutMapper;
 import com.fitness.mapper.WorkoutTemplateMapper;
+import com.fitness.mapper.ExerciseMapper;
 import com.fitness.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,17 +42,20 @@ public class WorkoutTemplateService {
     private final WorkoutMapper workoutMapper;
     private final WorkoutTemplateMapper templateMapper;
     private final UserMapper userMapper;
+    private final ExerciseMapper exerciseMapper;
 
     public WorkoutTemplateService(
             CurrentUserProvider currentUserProvider,
             WorkoutMapper workoutMapper,
             WorkoutTemplateMapper templateMapper,
-            UserMapper userMapper
+            UserMapper userMapper,
+            ExerciseMapper exerciseMapper
     ) {
         this.currentUserProvider = currentUserProvider;
         this.workoutMapper = workoutMapper;
         this.templateMapper = templateMapper;
         this.userMapper = userMapper;
+        this.exerciseMapper = exerciseMapper;
     }
 
     @Transactional
@@ -86,17 +92,46 @@ public class WorkoutTemplateService {
         items.forEach(templateMapper::insertTemplateExercise);
         template.setExercises(items);
 
-        return toResponse(template, profile);
+        return toResponseAndSynchronizeStatus(template, profile, userId);
     }
 
+    @Transactional
     public List<WorkoutTemplateResponse> list() {
         String userId = currentUserProvider.requireUserId();
         UserProfile profile = userMapper.findProfileByUserId(userId);
-        return templateMapper.findOwnedByUserId(userId).stream()
+        List<WorkoutTemplate> templates = templateMapper.findOwnedByUserId(userId).stream()
                 .peek(template -> template.setExercises(
                         templateMapper.findExercisesByTemplateId(template.getId())))
-                .map(template -> toResponse(template, profile))
                 .toList();
+        long statusChangeCount = templates.stream()
+                .filter(template -> resolveStatus(template, profile) != template.getStatus())
+                .count();
+        if (statusChangeCount > 0) {
+            System.out.printf(
+                    "Confirm synchronizing workout template statuses ownerUserId=%s templateCount=%d statusChangeCount=%d%n",
+                    userId,
+                    templates.size(),
+                    statusChangeCount);
+        }
+        return templates.stream()
+                .map(template -> toResponseAndSynchronizeStatus(template, profile, userId))
+                .toList();
+    }
+
+    public List<Exercise> listSubstitutes(String templateId, String templateExerciseId) {
+        String userId = currentUserProvider.requireUserId();
+        WorkoutTemplate template = templateMapper.findOwnedById(templateId, userId);
+        if (template == null) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
+        }
+        WorkoutTemplateExercise item = templateMapper.findExercisesByTemplateId(templateId).stream()
+                .filter(candidate -> candidate.getId().equals(templateExerciseId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
+        return exerciseMapper.findTemplateSubstitutes(
+                item.getExerciseId(),
+                currentEquipment(userMapper.findProfileByUserId(userId)),
+                ExerciseSubstituteReason.EQUIPMENT_SWAP);
     }
 
     @Transactional
@@ -107,8 +142,51 @@ public class WorkoutTemplateService {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
         }
 
+        if (request.exercises().size() < minimumExerciseCount(template)) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_EDIT_INVALID);
+        }
+
         List<WorkoutTemplateExercise> existingItems = templateMapper.findExercisesByTemplateId(templateId);
-        validatePrescriptionUpdates(template, existingItems, request.exercises());
+        Set<String> existingIds = existingItems.stream()
+                .map(WorkoutTemplateExercise::getId)
+                .collect(Collectors.toSet());
+        Map<String, WorkoutTemplateExercise> existingById = existingItems.stream()
+                .collect(Collectors.toMap(WorkoutTemplateExercise::getId, Function.identity()));
+        List<String> retainedIds = request.exercises().stream()
+                .map(UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate::templateExerciseId)
+                .toList();
+        if (retainedIds.stream().distinct().count() != retainedIds.size()
+                || !existingIds.containsAll(retainedIds)) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_EDIT_INVALID);
+        }
+        Set<Integer> sequences = request.exercises().stream()
+                .map(UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate::sequence)
+                .collect(Collectors.toSet());
+        boolean contiguousSequences = sequences.size() == request.exercises().size()
+                && sequences.stream().allMatch(sequence -> sequence >= 1
+                && sequence <= request.exercises().size());
+        long distinctExerciseCount = request.exercises().stream()
+                .map(UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate::exerciseId)
+                .distinct()
+                .count();
+        if (!contiguousSequences || distinctExerciseCount != request.exercises().size()) {
+            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_EDIT_INVALID);
+        }
+        UserProfile profile = userMapper.findProfileByUserId(userId);
+        List<String> availableEquipment = currentEquipment(profile);
+        for (UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate update : request.exercises()) {
+            WorkoutTemplateExercise existing = existingById.get(update.templateExerciseId());
+            if (!existing.getExerciseId().equals(update.exerciseId())) {
+                boolean allowed = exerciseMapper.findTemplateSubstitutes(
+                                existing.getExerciseId(),
+                                availableEquipment,
+                                ExerciseSubstituteReason.EQUIPMENT_SWAP).stream()
+                        .anyMatch(substitute -> substitute.getId().equals(update.exerciseId()));
+                if (!allowed) {
+                    throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_SUBSTITUTE_INVALID);
+                }
+            }
+        }
 
         System.out.printf(
                 "Confirm updating workout template templateId=%s ownerUserId=%s expectedVersion=%d itemCount=%d%n",
@@ -125,6 +203,8 @@ public class WorkoutTemplateService {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_CONFLICT);
         }
 
+        templateMapper.reserveTemplateExerciseSequences(templateId, userId);
+        templateMapper.deleteTemplateExercisesExcept(templateId, userId, retainedIds);
         for (UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate exercise : request.exercises()) {
             int itemUpdated = templateMapper.updateTemplateExercisePrescription(templateId, userId, exercise);
             if (itemUpdated == 0) {
@@ -134,7 +214,7 @@ public class WorkoutTemplateService {
 
         WorkoutTemplate refreshed = templateMapper.findOwnedById(templateId, userId);
         refreshed.setExercises(templateMapper.findExercisesByTemplateId(templateId));
-        return toResponse(refreshed, userMapper.findProfileByUserId(userId));
+        return toResponseAndSynchronizeStatus(refreshed, profile, userId);
     }
 
     @Transactional
@@ -154,72 +234,14 @@ public class WorkoutTemplateService {
         if (exercises == null || exercises.isEmpty()) {
             return true;
         }
-        Set<String> availableEquipment = new LinkedHashSet<>();
-        availableEquipment.add("body weight");
-        if (profile != null && profile.getAvailableEquipment() != null) {
-            profile.getAvailableEquipment().stream()
-                    .filter(equipment -> equipment != null && !equipment.isBlank())
-                    .map(String::trim)
-                    .map(String::toLowerCase)
-                    .forEach(availableEquipment::add);
-        }
-        return exercises.stream().anyMatch(item -> requiresRepair(item, availableEquipment));
-    }
-
-    private boolean requiresRepair(WorkoutTemplateExercise item, Set<String> availableEquipment) {
-        Exercise exercise = item.getExercise();
-        if (exercise == null || !exercise.isActive()) {
-            return true;
-        }
-        String exerciseEquipment = exercise.getEquipment() == null
-                ? ""
-                : exercise.getEquipment().trim().toLowerCase();
-        if (!availableEquipment.contains(exerciseEquipment)) {
-            return true;
-        }
-        boolean bodyweightExercise = "body weight".equals(exerciseEquipment);
-        if (item.getLoadType() == null) {
-            return true;
-        }
-        return switch (item.getLoadType()) {
-            case BODYWEIGHT -> !bodyweightExercise;
-            case ABSOLUTE_WEIGHT, PERCENT_1RM -> bodyweightExercise;
-            case RPE_ONLY, DURATION -> false;
-        };
-    }
-
-    private void validatePrescriptionUpdates(
-            WorkoutTemplate template,
-            List<WorkoutTemplateExercise> existingItems,
-            List<UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate> updates
-    ) {
-        int minimumExerciseCount = minimumExerciseCount(template);
-        if (updates.size() < minimumExerciseCount || updates.size() != existingItems.size()) {
-            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
-        }
-
-        Map<String, WorkoutTemplateExercise> existingById = existingItems.stream()
-                .collect(Collectors.toMap(WorkoutTemplateExercise::getId, Function.identity()));
-        long distinctSequenceCount = updates.stream()
-                .map(UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate::sequence)
-                .distinct()
-                .count();
-        if (distinctSequenceCount != updates.size()) {
-            throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
-        }
-
-        for (UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate update : updates) {
-            WorkoutTemplateExercise existing = existingById.get(update.templateExerciseId());
-            if (existing == null) {
-                throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND);
-            }
-            if (!existing.getLoadType().equals(update.loadType()) && update.load() == null) {
-                throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_INVALID);
-            }
-        }
+        Set<String> availableEquipment = new LinkedHashSet<>(currentEquipment(profile));
+        return exercises.stream().anyMatch(item -> repairReason(item, availableEquipment) != null);
     }
 
     private int minimumExerciseCount(WorkoutTemplate template) {
+        if (template.getBodyPart() == null) {
+            return 1;
+        }
         return switch (template.getBodyPart()) {
             case CHEST, BACK, SHOULDERS -> 3;
             case LEGS -> 4;
@@ -264,11 +286,95 @@ public class WorkoutTemplateService {
                 template.getEquipmentSnapshot(),
                 template.getProfileSnapshot(),
                 profileChanged(template, currentProfile),
-                template.getStatus(),
+                resolveStatus(template, currentProfile),
+                repairReasons(template, currentProfile),
                 template.getVersion(),
                 template.getCreatedAt(),
                 template.getUpdatedAt(),
                 exercises);
+    }
+
+    private WorkoutTemplateResponse toResponseAndSynchronizeStatus(
+            WorkoutTemplate template,
+            UserProfile profile,
+            String userId
+    ) {
+        WorkoutTemplateStatus resolvedStatus = resolveStatus(template, profile);
+        if (template.getStatus() != resolvedStatus) {
+            templateMapper.updateOwnedStatus(template.getId(), userId, resolvedStatus);
+            template.setStatus(resolvedStatus);
+        }
+        return toResponse(template, profile);
+    }
+
+    private WorkoutTemplateStatus resolveStatus(WorkoutTemplate template, UserProfile profile) {
+        return repairReasons(template, profile).isEmpty()
+                ? WorkoutTemplateStatus.ACTIVE
+                : WorkoutTemplateStatus.NEEDS_REPAIR;
+    }
+
+    private Map<String, WorkoutTemplateRepairReason> repairReasons(
+            WorkoutTemplate template,
+            UserProfile profile
+    ) {
+        if (template.getExercises() == null) {
+            return Map.of();
+        }
+        Set<String> availableEquipment = new LinkedHashSet<>(currentEquipment(profile));
+        Map<String, WorkoutTemplateRepairReason> reasons = new LinkedHashMap<>();
+        for (WorkoutTemplateExercise item : template.getExercises()) {
+            WorkoutTemplateRepairReason reason = repairReason(item, availableEquipment);
+            if (reason != null) {
+                reasons.put(item.getId(), reason);
+            }
+        }
+        return Map.copyOf(reasons);
+    }
+
+    private WorkoutTemplateRepairReason repairReason(
+            WorkoutTemplateExercise item,
+            Set<String> availableEquipment
+    ) {
+        if (item.getExercise() == null || !item.getExercise().isActive()) {
+            return WorkoutTemplateRepairReason.EXERCISE_UNAVAILABLE;
+        }
+        if (!hasEquipment(item.getExercise(), availableEquipment)) {
+            return WorkoutTemplateRepairReason.EQUIPMENT_UNAVAILABLE;
+        }
+        return isPrescriptionCompatible(item)
+                ? null
+                : WorkoutTemplateRepairReason.PRESCRIPTION_INCOMPATIBLE;
+    }
+
+    private boolean hasEquipment(Exercise exercise, Set<String> availableEquipment) {
+        return exercise.getEquipment() != null && availableEquipment.stream()
+                .anyMatch(equipment -> equipment.equalsIgnoreCase(exercise.getEquipment().trim()));
+    }
+
+    private boolean isPrescriptionCompatible(WorkoutTemplateExercise item) {
+        if (item.getLoadType() == null || item.getExercise() == null) {
+            return false;
+        }
+        boolean bodyweightExercise = "body weight".equalsIgnoreCase(
+                item.getExercise().getEquipment() == null ? "" : item.getExercise().getEquipment().trim());
+        return switch (item.getLoadType()) {
+            case BODYWEIGHT -> bodyweightExercise;
+            case ABSOLUTE_WEIGHT, PERCENT_1RM -> !bodyweightExercise;
+            case RPE_ONLY, DURATION -> true;
+        };
+    }
+
+    private List<String> currentEquipment(UserProfile profile) {
+        Set<String> equipment = new LinkedHashSet<>();
+        equipment.add("body weight");
+        if (profile != null && profile.getAvailableEquipment() != null) {
+            profile.getAvailableEquipment().stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .forEach(equipment::add);
+        }
+        return List.copyOf(equipment);
     }
 
     private Map<String, Object> snapshot(UserProfile profile) {

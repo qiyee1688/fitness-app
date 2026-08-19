@@ -28,3 +28,7 @@ export function delete_workout_template(template_id) {
 export function update_workout_template(template_id, payload) {
   return api_patch(`/workout-templates/${template_id}`, payload)
 }
+
+export function fetch_workout_template_substitutes(template_id, template_exercise_id) {
+  return api_get(`/workout-templates/${template_id}/exercises/${template_exercise_id}/substitutes`)
+}

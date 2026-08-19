@@ -1,6 +1,7 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.ExerciseSubstituteReason;
 import com.fitness.domain.FitnessLevel;
 import com.fitness.domain.Goal;
 import com.fitness.domain.LoadType;
@@ -19,6 +20,7 @@ import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
 import com.fitness.mapper.WorkoutMapper;
 import com.fitness.mapper.WorkoutTemplateMapper;
+import com.fitness.mapper.ExerciseMapper;
 import com.fitness.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ class WorkoutTemplateServiceTest {
     private WorkoutMapper workoutMapper;
     private WorkoutTemplateMapper templateMapper;
     private UserMapper userMapper;
+    private ExerciseMapper exerciseMapper;
     private WorkoutTemplateService service;
 
     @BeforeEach
@@ -50,7 +53,9 @@ class WorkoutTemplateServiceTest {
         workoutMapper = mock(WorkoutMapper.class);
         templateMapper = mock(WorkoutTemplateMapper.class);
         userMapper = mock(UserMapper.class);
-        service = new WorkoutTemplateService(currentUserProvider, workoutMapper, templateMapper, userMapper);
+        exerciseMapper = mock(ExerciseMapper.class);
+        service = new WorkoutTemplateService(
+                currentUserProvider, workoutMapper, templateMapper, userMapper, exerciseMapper);
         when(currentUserProvider.requireUserId()).thenReturn("user-id");
     }
 
@@ -207,8 +212,59 @@ class WorkoutTemplateServiceTest {
 
         assertThatThrownBy(() -> service.update("template-id", updateRequest()))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_NOT_FOUND));
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_EDIT_INVALID));
         verify(templateMapper, never()).updateOwnedTemplate(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void rejectsTemplateUpdateBelowBodyPartMinimum() {
+        when(templateMapper.findOwnedById("template-id", "user-id")).thenReturn(template());
+        UpdateWorkoutTemplateRequest request = new UpdateWorkoutTemplateRequest(0, "Edited template", List.of(
+                updateItem("item-1", 1), updateItem("item-2", 2)));
+
+        assertThatThrownBy(() -> service.update("template-id", request))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_EDIT_INVALID));
+        verify(templateMapper, never()).updateOwnedTemplate(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void rejectsReplacementOutsideSystemSubstituteCatalog() {
+        List<WorkoutTemplateExercise> existingItems = List.of(
+                templateExercise("item-1", 1),
+                templateExercise("item-2", 2),
+                templateExercise("item-3", 3));
+        when(templateMapper.findOwnedById("template-id", "user-id")).thenReturn(template());
+        when(templateMapper.findExercisesByTemplateId("template-id")).thenReturn(existingItems);
+        when(exerciseMapper.findTemplateSubstitutes(
+                "push-up", List.of("body weight"), ExerciseSubstituteReason.EQUIPMENT_SWAP))
+                .thenReturn(List.of(exercise("incline-push-up")));
+        UpdateWorkoutTemplateRequest request = new UpdateWorkoutTemplateRequest(0, "Edited template", List.of(
+                new UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate(
+                        "item-1", "unlisted-exercise", 1, 4, 10, null,
+                        LoadType.BODYWEIGHT, new BigDecimal("8.0")),
+                updateItem("item-2", 2),
+                updateItem("item-3", 3)));
+
+        assertThatThrownBy(() -> service.update("template-id", request))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.WORKOUT_TEMPLATE_SUBSTITUTE_INVALID));
+    }
+
+    @Test
+    void reportsInactiveExerciseRepairReasonAndSynchronizesStatus() {
+        WorkoutTemplateExercise inactiveItem = templateExercise("item-1", 1);
+        inactiveItem.getExercise().setActive(false);
+        when(templateMapper.findOwnedByUserId("user-id")).thenReturn(List.of(template()));
+        when(templateMapper.findExercisesByTemplateId("template-id")).thenReturn(List.of(inactiveItem));
+
+        WorkoutTemplateResponse response = service.list().getFirst();
+
+        assertThat(response.status()).isEqualTo(WorkoutTemplateStatus.NEEDS_REPAIR);
+        assertThat(response.repairReasons()).containsEntry(
+                "item-1", com.fitness.domain.WorkoutTemplateRepairReason.EXERCISE_UNAVAILABLE);
+        verify(templateMapper).updateOwnedStatus(
+                "template-id", "user-id", WorkoutTemplateStatus.NEEDS_REPAIR);
     }
 
     @Test
@@ -252,12 +308,24 @@ class WorkoutTemplateServiceTest {
     private UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate updateItem(String id, int sequence) {
         return new UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate(
                 id,
+                exerciseIdFor(id),
                 sequence,
                 4,
                 10,
                 null,
                 LoadType.BODYWEIGHT,
                 new BigDecimal("8.0"));
+    }
+
+    private String exerciseIdFor(String templateExerciseId) {
+        return switch (templateExerciseId) {
+            case "item-2" -> "wide-push-up";
+            case "item-3" -> "diamond-push-up";
+            case "other-1" -> "other-push-up";
+            case "other-2" -> "other-wide-push-up";
+            case "other-3" -> "other-diamond-push-up";
+            default -> "push-up";
+        };
     }
 
     private WorkoutTemplate template() {
@@ -305,25 +373,30 @@ class WorkoutTemplateServiceTest {
         WorkoutTemplateExercise item = new WorkoutTemplateExercise();
         item.setId(id);
         item.setTemplateId("template-id");
-        item.setExerciseId("push-up");
+        item.setExerciseId(exerciseIdFor(id));
         item.setSequence(sequence);
         item.setSets(3);
         item.setReps(12);
         item.setLoadType(LoadType.BODYWEIGHT);
         item.setRpe(new BigDecimal("7.5"));
-        item.setExercise(exercise());
+        item.setExercise(exercise(exerciseIdFor(id)));
         return item;
     }
 
     private Exercise exercise() {
+        return exercise("push-up");
+    }
+
+    private Exercise exercise(String id) {
         Exercise exercise = new Exercise();
-        exercise.setId("push-up");
+        exercise.setId(id);
         exercise.setName("Push-Up");
         exercise.setBodyPart("chest");
         exercise.setTarget("pectorals");
         exercise.setEquipment("body weight");
         exercise.setCoachCue("核心收紧");
         exercise.setCoachCueEn("Brace your core");
+        exercise.setActive(true);
         return exercise;
     }
 

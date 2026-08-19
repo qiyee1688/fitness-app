@@ -21,6 +21,7 @@ public record UpdateWorkoutTemplateRequest(
 ) {
     public record ExercisePrescriptionUpdate(
             @NotBlank String templateExerciseId,
+            @NotBlank String exerciseId,
             @Min(1) int sequence,
             @Min(1) @Max(20) int sets,
             @Min(1) @Max(100) int reps,

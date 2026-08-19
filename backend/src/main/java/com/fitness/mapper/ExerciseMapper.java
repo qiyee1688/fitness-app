@@ -1,6 +1,7 @@
 package com.fitness.mapper;
 
 import com.fitness.domain.Exercise;
+import com.fitness.domain.ExerciseSubstituteReason;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -66,5 +67,18 @@ public interface ExerciseMapper {
             @Param("equipment") List<String> equipment,
             @Param("preferredEquipment") List<String> preferredEquipment,
             @Param("ownerUserId") String ownerUserId
+    );
+
+    List<Exercise> findTemplateSubstitutes(
+            @Param("fromExerciseId") String fromExerciseId,
+            @Param("equipment") List<String> equipment,
+            @Param("reason") ExerciseSubstituteReason reason
+    );
+
+    int insertTemplateSubstitute(
+            @Param("fromExerciseId") String fromExerciseId,
+            @Param("toExerciseId") String toExerciseId,
+            @Param("reason") ExerciseSubstituteReason reason,
+            @Param("priority") int priority
     );
 }

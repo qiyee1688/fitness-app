@@ -21,6 +21,11 @@ public enum ErrorCode {
             "Not enough exercises for the selected body part and equipment",
             HttpStatus.UNPROCESSABLE_ENTITY),
     WORKOUT_TEMPLATE_INVALID(42203, "Workout template cannot be created from this workout", HttpStatus.UNPROCESSABLE_ENTITY),
+    WORKOUT_TEMPLATE_EDIT_INVALID(42204, "Workout template edit is invalid", HttpStatus.UNPROCESSABLE_ENTITY),
+    WORKOUT_TEMPLATE_SUBSTITUTE_INVALID(
+            42205,
+            "Exercise is not an available substitute for this template",
+            HttpStatus.UNPROCESSABLE_ENTITY),
     WORKOUT_TEMPLATE_NEEDS_REPAIR(
             42206,
             "Workout template needs repair before it can replace a plan workout",

@@ -158,4 +158,28 @@
                  e.id
     </select>
 
+    <select id="findTemplateSubstitutes" resultMap="ExerciseResultMap">
+        SELECT candidate.*
+        FROM exercise_substitutes relation
+        JOIN exercises candidate ON candidate.id = relation.to_exercise_id
+        WHERE relation.from_exercise_id = #{fromExerciseId}
+          AND relation.reason = #{reason}::varchar
+          AND candidate.active = TRUE
+          AND candidate.equipment IN
+          <foreach collection="equipment" item="item" open="(" separator="," close=")">
+              #{item}
+          </foreach>
+        ORDER BY relation.priority, candidate.selection_priority, candidate.id
+    </select>
+
+    <insert id="insertTemplateSubstitute">
+        INSERT INTO exercise_substitutes (
+            from_exercise_id, to_exercise_id, reason, priority
+        )
+        SELECT #{fromExerciseId}, #{toExerciseId}, #{reason}::varchar, #{priority}
+        WHERE EXISTS (SELECT 1 FROM exercises WHERE id = #{fromExerciseId})
+          AND EXISTS (SELECT 1 FROM exercises WHERE id = #{toExerciseId})
+        ON CONFLICT (from_exercise_id, to_exercise_id, reason) DO NOTHING
+    </insert>
+
 </mapper>

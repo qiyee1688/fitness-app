@@ -34,4 +34,21 @@ public interface WorkoutTemplateMapper {
             @Param("ownerUserId") String ownerUserId,
             @Param("exercise") UpdateWorkoutTemplateRequest.ExercisePrescriptionUpdate exercise
     );
+
+    int deleteTemplateExercisesExcept(
+            @Param("templateId") String templateId,
+            @Param("ownerUserId") String ownerUserId,
+            @Param("retainedIds") List<String> retainedIds
+    );
+
+    int reserveTemplateExerciseSequences(
+            @Param("templateId") String templateId,
+            @Param("ownerUserId") String ownerUserId
+    );
+
+    int updateOwnedStatus(
+            @Param("id") String id,
+            @Param("ownerUserId") String ownerUserId,
+            @Param("status") com.fitness.domain.WorkoutTemplateStatus status
+    );
 }

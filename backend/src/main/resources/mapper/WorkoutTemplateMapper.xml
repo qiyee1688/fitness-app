@@ -107,7 +107,8 @@
 
     <update id="updateTemplateExercisePrescription">
         UPDATE workout_template_exercises te
-        SET sequence = #{exercise.sequence},
+        SET exercise_id = #{exercise.exerciseId},
+            sequence = #{exercise.sequence},
             sets = #{exercise.sets},
             reps = #{exercise.reps},
             load = #{exercise.load},
@@ -119,5 +120,39 @@
               SELECT 1 FROM workout_templates wt
               WHERE wt.id = te.template_id AND wt.owner_user_id = #{ownerUserId}::uuid
           )
+    </update>
+
+    <delete id="deleteTemplateExercisesExcept">
+        DELETE FROM workout_template_exercises te
+        WHERE te.template_id = #{templateId}::uuid
+          AND te.id NOT IN
+          <foreach collection="retainedIds" item="retainedId" open="(" separator="," close=")">
+              #{retainedId}::uuid
+          </foreach>
+          AND EXISTS (
+              SELECT 1 FROM workout_templates wt
+              WHERE wt.id = te.template_id
+                AND wt.owner_user_id = #{ownerUserId}::uuid
+          )
+    </delete>
+
+    <update id="reserveTemplateExerciseSequences">
+        UPDATE workout_template_exercises te
+        SET sequence = -sequence
+        WHERE te.template_id = #{templateId}::uuid
+          AND te.sequence &gt; 0
+          AND EXISTS (
+              SELECT 1 FROM workout_templates wt
+              WHERE wt.id = te.template_id
+                AND wt.owner_user_id = #{ownerUserId}::uuid
+          )
+    </update>
+
+    <update id="updateOwnedStatus">
+        UPDATE workout_templates
+        SET status = #{status}::workout_template_status_enum
+        WHERE id = #{id}::uuid
+          AND owner_user_id = #{ownerUserId}::uuid
+          AND status &lt;&gt; #{status}::workout_template_status_enum
     </update>
 </mapper>
