@@ -23,6 +23,10 @@ class NutritionSchemaMigrationTest {
                 .contains("CREATE TABLE IF NOT EXISTS nutrition_tips")
                 .contains("MUSCLE_GAIN_PRE_WORKOUT")
                 .contains("FAT_LOSS_DAILY")
+                .contains("DROP INDEX IF EXISTS uq_nutrition_rules_enabled_condition")
+                .contains("uq_nutrition_rules_enabled_no_focus")
+                .contains("uq_nutrition_rules_enabled_with_focus")
+                .doesNotContain("COALESCE(focus::text, '*')")
                 .contains("WHERE nutrition_rules.version < EXCLUDED.version");
     }
 }
