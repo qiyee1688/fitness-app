@@ -4,6 +4,7 @@ import com.fitness.domain.ArticleReference;
 import com.fitness.domain.Exercise;
 import com.fitness.domain.KnowledgeArticle;
 import com.fitness.dto.KnowledgeArticleResponse;
+import com.fitness.dto.KnowledgeArticleSummary;
 import com.fitness.dto.PageResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.exception.BusinessException;
@@ -35,6 +36,10 @@ public class KnowledgeArticleService {
             throw new BusinessException(ErrorCode.KNOWLEDGE_ARTICLE_NOT_FOUND);
         }
         return toResponseWithReferences(article);
+    }
+
+    public List<KnowledgeArticleSummary> listPublishedByExerciseId(String exerciseId) {
+        return articleMapper.findPublishedByExerciseId(exerciseId);
     }
 
     private KnowledgeArticleResponse toResponseWithReferences(KnowledgeArticle article) {

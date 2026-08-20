@@ -2,6 +2,7 @@ package com.fitness.controller;
 
 import com.fitness.dto.ApiResponse;
 import com.fitness.dto.KnowledgeArticleResponse;
+import com.fitness.dto.KnowledgeArticleSummary;
 import com.fitness.dto.PageResponse;
 import com.fitness.service.KnowledgeArticleService;
 import jakarta.validation.constraints.Max;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @Validated
@@ -40,5 +43,12 @@ public class KnowledgeArticleController {
             @PathVariable @NotBlank String slug
     ) {
         return ResponseEntity.ok(ApiResponse.success(articleService.getPublishedBySlug(slug)));
+    }
+
+    @GetMapping("/by-exercise/{exerciseId}")
+    public ResponseEntity<ApiResponse<List<KnowledgeArticleSummary>>> listByExercise(
+            @PathVariable @NotBlank String exerciseId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(articleService.listPublishedByExerciseId(exerciseId)));
     }
 }

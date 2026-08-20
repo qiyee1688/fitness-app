@@ -1,7 +1,9 @@
 package com.fitness.service;
 
 import com.fitness.domain.Exercise;
+import com.fitness.dto.KnowledgeArticleSummary;
 import com.fitness.mapper.ExerciseMapper;
+import com.fitness.mapper.KnowledgeArticleMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +18,11 @@ import java.util.List;
 public class ExerciseService {
 
     private final ExerciseMapper exerciseMapper;
+    private final KnowledgeArticleMapper knowledgeArticleMapper;
 
-    public ExerciseService(ExerciseMapper exerciseMapper) {
+    public ExerciseService(ExerciseMapper exerciseMapper, KnowledgeArticleMapper knowledgeArticleMapper) {
         this.exerciseMapper = exerciseMapper;
+        this.knowledgeArticleMapper = knowledgeArticleMapper;
     }
 
     /**
@@ -26,6 +30,10 @@ public class ExerciseService {
      */
     public Exercise getExerciseById(String id) {
         return exerciseMapper.findById(id);
+    }
+
+    public List<KnowledgeArticleSummary> getPublishedArticles(String exerciseId) {
+        return knowledgeArticleMapper.findPublishedByExerciseId(exerciseId);
     }
 
     /**

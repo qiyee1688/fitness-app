@@ -2,6 +2,7 @@ package com.fitness.controller;
 
 import com.fitness.domain.Exercise;
 import com.fitness.dto.ApiResponse;
+import com.fitness.dto.KnowledgeArticleSummary;
 import com.fitness.dto.PageResponse;
 import com.fitness.exception.BusinessException;
 import com.fitness.exception.ErrorCode;
@@ -40,6 +41,16 @@ public class ExerciseController {
             throw new BusinessException(ErrorCode.EXERCISE_NOT_FOUND);
         }
         return ResponseEntity.ok(ApiResponse.success(exercise));
+    }
+
+    @GetMapping("/{id}/articles")
+    public ResponseEntity<ApiResponse<List<KnowledgeArticleSummary>>> getRelatedArticles(
+            @PathVariable @NotBlank String id
+    ) {
+        if (exerciseService.getExerciseById(id) == null) {
+            throw new BusinessException(ErrorCode.EXERCISE_NOT_FOUND);
+        }
+        return ResponseEntity.ok(ApiResponse.success(exerciseService.getPublishedArticles(id)));
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.fitness.controller;
 
 import com.fitness.domain.Exercise;
+import com.fitness.dto.KnowledgeArticleSummary;
 import com.fitness.service.ExerciseService;
 import org.apache.ibatis.annotations.Mapper;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,20 @@ class ExerciseControllerTest {
 
     @MockitoBean
     private ExerciseService exerciseService;
+
+    @Test
+    void getRelatedArticlesReturnsOnlyPublishedArticleSummaries() throws Exception {
+        when(exerciseService.getExerciseById("0001")).thenReturn(createExercise("0001", "3/4 sit-up"));
+        when(exerciseService.getPublishedArticles("0001")).thenReturn(List.of(new KnowledgeArticleSummary(
+                "article-id", "training-basics", "训练基础", "Training Basics", "摘要", "Summary",
+                null, null)));
+
+        mockMvc.perform(get("/exercises/0001/articles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].slug").value("training-basics"))
+                .andExpect(jsonPath("$.data[0].title").value("训练基础"));
+    }
 
     @Test
     void getExerciseByIdReturnsUnifiedSuccessResponse() throws Exception {

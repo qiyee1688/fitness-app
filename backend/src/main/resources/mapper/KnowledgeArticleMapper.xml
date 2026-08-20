@@ -83,4 +83,20 @@
         WHERE ar.article_id = #{articleId} AND ka.status = 'PUBLISHED'
         ORDER BY ar.display_order, ar.exercise_id
     </select>
+
+    <select id="findPublishedByExerciseId" resultType="com.fitness.dto.KnowledgeArticleSummary">
+        SELECT ka.id AS article_id,
+               ka.slug,
+               ka.title,
+               ka.title_en,
+               ka.summary,
+               ka.summary_en,
+               ka.cover_image_url,
+               ka.published_at
+        FROM article_references ar
+        JOIN knowledge_articles ka ON ka.id = ar.article_id
+        WHERE ar.exercise_id = #{exerciseId}
+          AND ka.status = 'PUBLISHED'
+        ORDER BY ka.published_at DESC, ka.id
+    </select>
 </mapper>

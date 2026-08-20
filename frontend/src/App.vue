@@ -6,6 +6,7 @@
       </router-link>
       <el-menu mode="horizontal" router :ellipsis="false" class="nav">
         <el-menu-item index="/">{{ t('navExercises') }}</el-menu-item>
+        <el-menu-item index="/articles">{{ t('navArticles') }}</el-menu-item>
         <el-menu-item index="/workouts/on-demand">{{ t('navOnDemand') }}</el-menu-item>
         <el-menu-item index="/workout-templates">{{ t('navTemplates') }}</el-menu-item>
         <el-menu-item index="/plan">{{ t('navPlan') }}</el-menu-item>

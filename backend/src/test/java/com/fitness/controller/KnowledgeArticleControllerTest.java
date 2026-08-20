@@ -70,6 +70,22 @@ class KnowledgeArticleControllerTest {
     }
 
     @Test
+    void listByExerciseReturnsPublishedArticleSummaries() throws Exception {
+        when(articleService.listPublishedByExerciseId("push-up")).thenReturn(List.of(
+                new com.fitness.dto.KnowledgeArticleSummary(
+                        "article-id", "training-basics", "训练基础", "Training Basics",
+                        "摘要", "Summary", null, LocalDateTime.of(2026, 8, 19, 10, 0))));
+
+        mockMvc.perform(get("/knowledge-articles/by-exercise/push-up"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].articleId").value("article-id"))
+                .andExpect(jsonPath("$.data[0].titleEn").value("Training Basics"));
+
+        verify(articleService).listPublishedByExerciseId("push-up");
+    }
+
+    @Test
     void listRejectsInvalidPagination() throws Exception {
         mockMvc.perform(get("/knowledge-articles").param("page", "0"))
                 .andExpect(status().isBadRequest())

@@ -7,6 +7,8 @@ import TodayWorkout from '@/views/TodayWorkout.vue'
 import UserProfile from '@/views/UserProfile.vue'
 import OnDemandWorkout from '@/views/OnDemandWorkout.vue'
 import WorkoutTemplates from '@/views/WorkoutTemplates.vue'
+import KnowledgeArticleList from '@/views/KnowledgeArticleList.vue'
+import KnowledgeArticleDetail from '@/views/KnowledgeArticleDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +22,17 @@ const router = createRouter({
       path: '/exercises/:id',
       name: 'exercise-detail',
       component: ExerciseDetail,
+      props: true,
+    },
+    {
+      path: '/articles',
+      name: 'knowledge-article-list',
+      component: KnowledgeArticleList,
+    },
+    {
+      path: '/articles/:slug',
+      name: 'knowledge-article-detail',
+      component: KnowledgeArticleDetail,
       props: true,
     },
     {

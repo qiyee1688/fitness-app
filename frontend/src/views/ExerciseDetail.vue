@@ -74,17 +74,44 @@
           <li v-for="step in steps" :key="step">{{ step }}</li>
         </ol>
         <el-empty v-else :description="t('emptySteps')" />
+
+        <section class="related-articles">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">{{ t('knowledgeArticleEyebrow') }}</p>
+              <h2>{{ t('relatedArticles') }}</h2>
+            </div>
+          </div>
+          <el-alert v-if="articles_error" :title="articles_error" type="error" show-icon :closable="false" />
+          <el-skeleton v-else-if="articles_loading" :rows="2" animated />
+          <el-empty v-else-if="!related_articles.length" :description="t('emptyRelatedArticles')" />
+          <div v-else class="related-article-list">
+            <router-link
+              v-for="article in related_articles"
+              :key="article.articleId"
+              class="related-article-card"
+              :to="{ name: 'knowledge-article-detail', params: { slug: article.slug }, query: { from: 'exercise' } }"
+            >
+              <div>
+                <h3>{{ article_title(article) }}</h3>
+                <p>{{ article_summary(article) }}</p>
+              </div>
+              <el-icon><ArrowRight /></el-icon>
+            </router-link>
+          </div>
+        </section>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { fetch_exercise } from '@/api/exercise'
+import { fetch_articles_for_exercise } from '@/api/article'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_list, display_value } from '@/utils/exerciseDisplay'
 
@@ -102,6 +129,9 @@ const exercise = ref(null)
 const error = ref('')
 const loading = ref(false)
 const media_broken = ref(false)
+const related_articles = ref([])
+const articles_loading = ref(false)
+const articles_error = ref('')
 
 const media_source = computed(() => {
   if (media_broken.value) {
@@ -137,6 +167,14 @@ const steps = computed(() => {
   return instruction_steps.en || instruction_steps.zh || Object.values(instruction_steps)[0] || []
 })
 
+function article_title(article) {
+  return language.value === 'zh' ? article.title || article.titleEn : article.titleEn || article.title
+}
+
+function article_summary(article) {
+  return language.value === 'zh' ? article.summary || article.summaryEn : article.summaryEn || article.summary
+}
+
 function go_back() {
   if (route.query.from === 'on-demand') {
     router.push({ name: 'on-demand-workout' })
@@ -152,10 +190,23 @@ async function load_detail() {
   media_broken.value = false
   try {
     exercise.value = await fetch_exercise(props.id)
+    await load_related_articles()
   } catch (exception) {
     error.value = exception.message
   } finally {
     loading.value = false
+  }
+}
+
+async function load_related_articles() {
+  articles_loading.value = true
+  articles_error.value = ''
+  try {
+    related_articles.value = await fetch_articles_for_exercise(props.id)
+  } catch (exception) {
+    articles_error.value = exception.message
+  } finally {
+    articles_loading.value = false
   }
 }
 
