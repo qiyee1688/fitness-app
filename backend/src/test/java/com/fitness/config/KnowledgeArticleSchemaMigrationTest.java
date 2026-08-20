@@ -22,6 +22,10 @@ class KnowledgeArticleSchemaMigrationTest {
                 .contains("CREATE TABLE IF NOT EXISTS editors")
                 .contains("CREATE TABLE IF NOT EXISTS knowledge_articles")
                 .contains("CREATE TABLE IF NOT EXISTS article_references")
-                .contains("status <> 'PUBLISHED' OR published_at IS NOT NULL");
+                .contains("status <> 'PUBLISHED' OR published_at IS NOT NULL")
+                .contains("build-a-sustainable-training-habit")
+                .contains("core-training-without-rushing-reps")
+                .contains("recovery-checklist-after-your-workout")
+                .contains("ON CONFLICT (slug) DO UPDATE");
     }
 }

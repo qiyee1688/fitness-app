@@ -80,7 +80,7 @@
         FROM article_references ar
         JOIN knowledge_articles ka ON ka.id = ar.article_id
         JOIN exercises ex ON ex.id = ar.exercise_id AND ex.active = TRUE
-        WHERE ar.article_id = #{articleId} AND ka.status = 'PUBLISHED'
+        WHERE ar.article_id = #{articleId}::uuid AND ka.status = 'PUBLISHED'
         ORDER BY ar.display_order, ar.exercise_id
     </select>
 
