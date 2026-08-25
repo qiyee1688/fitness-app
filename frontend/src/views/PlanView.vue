@@ -30,6 +30,13 @@
         </div>
       </section>
 
+      <PrescriptionAdjustments
+        :plan-version="plan.version"
+        :workouts="plan.workouts"
+        :refresh-key="adjustment_refresh_key"
+        @resolved="load_plan"
+      />
+
       <el-empty v-if="!plan.workouts?.length" :description="t('emptyPlan')" />
       <template v-else>
         <div class="week-tabs" role="tablist" :aria-label="t('weeks')">
@@ -150,6 +157,7 @@ import { useRouter } from 'vue-router'
 import { fetch_workout_templates } from '@/api/workout'
 import { fetch_current_plan, replace_plan_workout } from '@/api/plan'
 import NutritionTips from '@/components/NutritionTips.vue'
+import PrescriptionAdjustments from '@/components/PrescriptionAdjustments.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 
@@ -167,6 +175,7 @@ const replace_dialog_visible = ref(false)
 const replacing = ref(false)
 const selected_workout = ref(null)
 const selected_template_id = ref('')
+const adjustment_refresh_key = ref(0)
 
 const week_numbers = computed(() => Array.from({ length: plan.value?.totalWeeks || 8 }, (_, index) => index + 1))
 const selected_workouts = computed(() => plan.value?.workouts?.filter((workout) => workout.weekNumber === selected_week.value) || [])
@@ -240,6 +249,7 @@ async function confirm_replace() {
     })
     replace_dialog_visible.value = false
     selected_workout.value = null
+    adjustment_refresh_key.value += 1
     await load_plan()
   } catch (exception) {
     error.value = exception.message

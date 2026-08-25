@@ -19,3 +19,19 @@ export function submit_exercise_feedback(workout_id, exercise_id, feedback) {
 export function replace_plan_workout(plan_id, workout_id, payload) {
   return api_post(`/plans/${plan_id}/workouts/${workout_id}/replace`, payload)
 }
+
+export function fetch_prescription_adjustments(username = 'demo') {
+  return api_get('/plans/adjustments', { username })
+}
+
+export function accept_prescription_adjustment(adjustment_id, expected_plan_version, username = 'demo') {
+  return api_post(`/plans/adjustments/${adjustment_id}/accept?username=${encodeURIComponent(username)}`, {
+    expectedPlanVersion: expected_plan_version,
+  }, { username })
+}
+
+export function decline_prescription_adjustment(adjustment_id, expected_plan_version, username = 'demo') {
+  return api_post(`/plans/adjustments/${adjustment_id}/decline?username=${encodeURIComponent(username)}`, {
+    expectedPlanVersion: expected_plan_version,
+  }, { username })
+}

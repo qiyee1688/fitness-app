@@ -42,6 +42,14 @@
         </div>
       </section>
 
+      <PrescriptionAdjustments
+        :plan-version="plan_version"
+        :version-error="adjustment_version_error"
+        :workouts="plan_workouts"
+        :refresh-key="adjustment_refresh_key"
+        @resolved="refresh_after_adjustment"
+      />
+
       <section class="today-prescriptions">
         <article
           v-for="prescription in workout.prescriptions"
@@ -92,8 +100,9 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage } from 'element-plus'
-import { complete_workout, fetch_today_workout, submit_exercise_feedback } from '@/api/plan'
+import { complete_workout, fetch_current_plan, fetch_today_workout, submit_exercise_feedback } from '@/api/plan'
 import NutritionTips from '@/components/NutritionTips.vue'
+import PrescriptionAdjustments from '@/components/PrescriptionAdjustments.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { display_exercise_name, display_value } from '@/utils/exerciseDisplay'
 
@@ -111,21 +120,39 @@ const workout = ref(null)
 const feedback_types = ref({})
 const hurt_body_parts = ref({})
 const submitting_feedback = ref('')
+const plan_version = ref(null)
+const adjustment_refresh_key = ref(0)
+const adjustment_version_error = ref('')
+const plan_workouts = ref([])
 
 async function load_today_workout() {
   loading.value = true
   error.value = ''
   no_active_plan.value = false
   rest_day.value = false
+  adjustment_version_error.value = ''
   try {
     workout.value = await fetch_today_workout(route.query.date)
   } catch (exception) {
     workout.value = null
+    plan_version.value = null
+    plan_workouts.value = []
     if (exception.code === ACTIVE_PLAN_NOT_FOUND) no_active_plan.value = true
     else if (exception.code === TODAY_WORKOUT_NOT_FOUND) rest_day.value = true
     else error.value = exception.message
+    return
   } finally {
     loading.value = false
+  }
+
+  try {
+    const plan = await fetch_current_plan()
+    plan_version.value = plan.version
+    plan_workouts.value = plan.workouts || []
+  } catch (exception) {
+    plan_version.value = null
+    plan_workouts.value = []
+    adjustment_version_error.value = exception.message
   }
 }
 
@@ -134,6 +161,7 @@ async function complete_today_workout() {
   error.value = ''
   try {
     workout.value = await complete_workout(workout.value.workoutId)
+    adjustment_refresh_key.value += 1
   } catch (exception) {
     error.value = exception.message
   } finally {
@@ -159,12 +187,25 @@ async function submit_feedback(prescription) {
         : null,
     })
     workout.value = result.workout
+    adjustment_refresh_key.value += 1
     ElMessage.success(result.substituted ? t('exerciseSubstituted')
       : result.removedForSafety ? t('exerciseRemovedForSafety') : t('feedbackSaved'))
   } catch (exception) {
     error.value = exception.message
   } finally {
     submitting_feedback.value = ''
+  }
+}
+
+async function refresh_after_adjustment() {
+  adjustment_refresh_key.value += 1
+  try {
+    const plan = await fetch_current_plan()
+    plan_version.value = plan.version
+    plan_workouts.value = plan.workouts || []
+    workout.value = await fetch_today_workout(route.query.date)
+  } catch (exception) {
+    error.value = exception.message
   }
 }
 
