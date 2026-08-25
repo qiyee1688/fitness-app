@@ -66,6 +66,10 @@ _Avoid_: 训练类型、训练模式
 一次 Exercise 该怎么做的处方。含 `sets / reps / load / loadType / rpe`。`loadType ∈ {ABSOLUTE_WEIGHT, PERCENT_1RM, BODYWEIGHT, RPE_ONLY, DURATION}`。`rpe` 优先，`load` 作为 fallback。
 _Avoid_: 处方、组次
 
+**PrescriptionAdjustment**:
+根据同一 Exercise 连续反馈而提出的、面向下一次未开始训练的处方建议。它显示调整原因和调整前后内容，必须由 User 确认后才创建新的建议版本；不会改写已开始或已完成的 Workout。连续 `TOO_HARD` 时可建议满足器械条件的 ExerciseSubstitute；`HURT_*` 仍走即时替换和未来过滤规则。
+_Avoid_: 自动改计划、AI 调整
+
 **Set**:
 Prescription 中的单个"组"，用户实际完成的次数与负荷可与处方不同。打卡时记录。
 _Avoid_: 组次、一组
@@ -239,6 +243,7 @@ _Avoid_: 模板、口吻
 
 58. **OnDemandWorkout 选择 = 编辑优先级 + 确定性排序**：Exercise 先按部位和可用器械过滤，再按 selectionPriority、精确器械匹配、exerciseId 排序；variation 只做稳定偏移。二期不做行为热度自动计算。
 59. **FoodItem 目录 = 静态编辑审核 + 公开只读查询**：FoodItem 以稳定业务 ID 和标准份量宏量数据维护，支持名称/类别搜索与详情查询；不允许用户自定义食品、外部同步或独立 Diet 计划。FoodItem 是决策 24 所述三期食物库的最小实现。
+60. **PrescriptionAdjustment = 连续反馈、用户确认的下一次建议**：同一 Exercise 连续两次 `TOO_EASY` 或 `TOO_HARD` 才提出处方调整；第一版只使用 Active Plan 的连续 ExerciseFeedback，不使用实际组次/负重记录，也不覆盖 OnDemandWorkout、模板或自动续期 Plan。调整以 Prescription 为主，连续 `TOO_HARD` 可建议符合器械规则的 ExerciseSubstitute。`TOO_EASY` 先提高 RPE，再提高次数或负重建议；`TOO_HARD` 反向调整，且不能越过当前 FitnessLevel 的安全范围。每次确认只能改变一个维度：RPE ±1、次数 ±1–2 或一个小档负重建议。调整不会静默生效，User 在 Workout 完成小结或下次训练开始前确认后创建新建议版本，并且仅应用到同一 Exercise 的下一次未开始出现；历史和已开始 Workout 保持不变。确认时写入含原/建议处方、原因与确认时间的审计记录，并在乐观锁保护下更新目标未来 Prescription；确认或拒绝都会消耗当前反馈窗口，需新的连续反馈才可再建议。若没有下一次未开始目标、目标 Workout 被替换、取消或 Plan 再生成，均写入已失效审计记录、消耗反馈窗口且不得迁移；`HURT_*` 沿用既有即时替换与四周过滤。
 
 ## 分期
 
