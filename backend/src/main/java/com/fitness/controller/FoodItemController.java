@@ -2,9 +2,12 @@ package com.fitness.controller;
 
 import com.fitness.domain.FoodCategory;
 import com.fitness.dto.ApiResponse;
+import com.fitness.dto.FoodItemConversionResponse;
 import com.fitness.dto.FoodItemResponse;
 import com.fitness.dto.PageResponse;
 import com.fitness.service.FoodItemService;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +19,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
 
 @RestController
 @Validated
@@ -36,6 +41,14 @@ public class FoodItemController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.success(foodItemService.list(query, category, page, pageSize)));
+    }
+
+    @GetMapping("/{id}/conversion")
+    public ResponseEntity<ApiResponse<FoodItemConversionResponse>> convert(
+            @PathVariable @NotBlank String id,
+            @RequestParam @DecimalMin(value = "0.0", inclusive = false) @DecimalMax("100.0") BigDecimal servings
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(foodItemService.convert(id, servings)));
     }
 
     @GetMapping("/{id}")
