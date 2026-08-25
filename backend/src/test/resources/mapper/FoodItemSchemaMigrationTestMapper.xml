@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.FoodItemSchemaMigrationTestMapper">
+    <update id="createUpdatedAtFunction">
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql'
+    </update>
+
+    <select id="countFoodItems" resultType="int">
+        SELECT COUNT(*) FROM food_items
+    </select>
+
+    <insert id="insertFoodItem">
+        INSERT INTO food_items (
+            id, name, name_en, category, serving_description, serving_description_en,
+            serving_grams, protein_grams, carbs_grams, fat_grams, kcal
+        ) VALUES (
+            #{id}, 'Test food', 'Test food', 'OTHER'::food_category_enum, '1 serving', '1 serving',
+            #{servingGrams}, #{proteinGrams}, #{carbsGrams}, #{fatGrams}, #{kcal}
+        )
+    </insert>
+</mapper>

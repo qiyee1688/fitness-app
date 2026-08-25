@@ -15,6 +15,7 @@ public enum ErrorCode {
     WORKOUT_TEMPLATE_NOT_FOUND(40409, "Workout template not found", HttpStatus.NOT_FOUND),
     WORKOUT_RESOURCE_NOT_FOUND(40410, "Workout not found", HttpStatus.NOT_FOUND),
     KNOWLEDGE_ARTICLE_NOT_FOUND(40411, "Knowledge article not found", HttpStatus.NOT_FOUND),
+    FOOD_ITEM_NOT_FOUND(40412, "Food item not found", HttpStatus.NOT_FOUND),
     AUTHENTICATION_REQUIRED(40101, "Authentication required", HttpStatus.UNAUTHORIZED),
     PLAN_GENERATION_FAILED(42201, "No exercises available for plan generation", HttpStatus.UNPROCESSABLE_ENTITY),
     ON_DEMAND_GENERATION_FAILED(

@@ -19,7 +19,7 @@ class PostgreSqlIndexDefinitionTest {
             "(?is)CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?"
                     + "[a-z_][a-z0-9_]*\\s+ON\\s+[a-z_][a-z0-9_]*\\s*\\(([^)]*)\\)");
     private static final Pattern COLUMN_KEY = Pattern.compile(
-            "(?i)[a-z_][a-z0-9_]*(?:\\s+(?:ASC|DESC))?");
+            "(?i)[a-z_][a-z0-9_]*(?:\\s+[a-z_][a-z0-9_]*)?(?:\\s+(?:ASC|DESC))?");
 
     @Test
     void indexKeysUseOnlyColumnsToAvoidNonImmutablePostgresExpressions() throws IOException {
@@ -27,12 +27,12 @@ class PostgreSqlIndexDefinitionTest {
 
         try (Stream<Path> resourcePaths = Files.walk(SQL_RESOURCE_ROOT)) {
             resourcePaths
-                    .filter(path -> path.toString().endsWith(".sql"))
+                    .filter(path -> path.toString().endsWith(".sql") || path.toString().endsWith(".xml"))
                     .forEach(path -> collectExpressionIndexDefinitions(path, invalidDefinitions));
         }
 
         assertThat(invalidDefinitions)
-                .as("PostgreSQL index keys must not contain functions or casts; use column-only partial indexes instead")
+                .as("PostgreSQL index keys must not contain functions or casts; a column may declare an operator class")
                 .isEmpty();
     }
 

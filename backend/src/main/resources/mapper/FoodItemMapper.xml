@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.FoodItemMapper">
+    <resultMap id="FoodItemResultMap" type="com.fitness.domain.FoodItem">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="nameEn" column="name_en"/>
+        <result property="category" column="category"/>
+        <result property="servingDescription" column="serving_description"/>
+        <result property="servingDescriptionEn" column="serving_description_en"/>
+        <result property="servingGrams" column="serving_grams"/>
+        <result property="proteinGrams" column="protein_grams"/>
+        <result property="carbsGrams" column="carbs_grams"/>
+        <result property="fatGrams" column="fat_grams"/>
+        <result property="kcal" column="kcal"/>
+    </resultMap>
+
+    <sql id="foodItemColumns">
+        id, name, name_en, category, serving_description, serving_description_en,
+        serving_grams, protein_grams, carbs_grams, fat_grams, kcal
+    </sql>
+
+    <sql id="filters">
+        <where>
+            <if test="query != null">
+                AND (name ILIKE CONCAT('%', #{query}, '%') OR name_en ILIKE CONCAT('%', #{query}, '%'))
+            </if>
+            <if test="category != null">
+                AND category = #{category}::food_category_enum
+            </if>
+        </where>
+    </sql>
+
+    <select id="find" resultMap="FoodItemResultMap">
+        SELECT <include refid="foodItemColumns"/>
+        FROM food_items
+        <include refid="filters"/>
+        ORDER BY category, name_en, id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM food_items
+        <include refid="filters"/>
+    </select>
+
+    <select id="findById" resultMap="FoodItemResultMap">
+        SELECT <include refid="foodItemColumns"/>
+        FROM food_items
+        WHERE id = #{id}
+    </select>
+</mapper>

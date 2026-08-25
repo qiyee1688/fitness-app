@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.FoodItemSchemaMigrationMapper">
+    <update id="apply">
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'food_category_enum') THEN
+                CREATE TYPE food_category_enum AS ENUM ('PROTEIN', 'GRAIN', 'DAIRY', 'FRUIT', 'VEGETABLE', 'OTHER');
+            END IF;
+        END
+        $$;
+
+        CREATE TABLE IF NOT EXISTS food_items (
+            id VARCHAR(80) PRIMARY KEY,
+            name VARCHAR(120) NOT NULL,
+            name_en VARCHAR(120) NOT NULL,
+            category food_category_enum NOT NULL,
+            serving_description VARCHAR(160) NOT NULL,
+            serving_description_en VARCHAR(160) NOT NULL,
+            serving_grams NUMERIC(7, 1) NOT NULL,
+            protein_grams NUMERIC(7, 1) NOT NULL,
+            carbs_grams NUMERIC(7, 1) NOT NULL,
+            fat_grams NUMERIC(7, 1) NOT NULL,
+            kcal NUMERIC(8, 1) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT chk_food_item_serving_grams_positive CHECK (serving_grams > 0),
+            CONSTRAINT chk_food_item_macros_non_negative CHECK (
+                protein_grams >= 0 AND carbs_grams >= 0 AND fat_grams >= 0 AND kcal >= 0
+            )
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_food_items_category ON food_items(category);
+        CREATE INDEX IF NOT EXISTS idx_food_items_name_search ON food_items USING GIN (name gin_trgm_ops);
+        CREATE INDEX IF NOT EXISTS idx_food_items_name_en_search ON food_items USING GIN (name_en gin_trgm_ops);
+
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_trigger
+                WHERE tgname = 'update_food_items_updated_at'
+                  AND tgrelid = 'food_items'::regclass
+            ) THEN
+                CREATE TRIGGER update_food_items_updated_at BEFORE UPDATE ON food_items
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            END IF;
+        END
+        $$;
+
+        INSERT INTO food_items (
+            id, name, name_en, category, serving_description, serving_description_en,
+            serving_grams, protein_grams, carbs_grams, fat_grams, kcal
+        ) VALUES
+            ('egg-whole', '鸡蛋', 'Whole egg', 'PROTEIN', '1 个大鸡蛋', '1 large egg', 50.0, 6.3, 0.4, 5.0, 72.0),
+            ('rice-cooked', '熟米饭', 'Cooked rice', 'GRAIN', '1 小碗熟米饭', '1 small bowl cooked rice', 150.0, 4.0, 42.0, 0.5, 195.0),
+            ('chicken-breast-cooked', '熟鸡胸肉', 'Cooked chicken breast', 'PROTEIN', '1 掌心大小', '1 palm-sized portion', 100.0, 31.0, 0.0, 3.6, 165.0),
+            ('milk-low-fat', '低脂牛奶', 'Low-fat milk', 'DAIRY', '1 杯', '1 cup', 250.0, 8.5, 12.0, 2.5, 120.0),
+            ('banana-medium', '香蕉', 'Medium banana', 'FRUIT', '1 根中等大小香蕉', '1 medium banana', 118.0, 1.3, 27.0, 0.4, 105.0)
+        ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            name_en = EXCLUDED.name_en,
+            category = EXCLUDED.category,
+            serving_description = EXCLUDED.serving_description,
+            serving_description_en = EXCLUDED.serving_description_en,
+            serving_grams = EXCLUDED.serving_grams,
+            protein_grams = EXCLUDED.protein_grams,
+            carbs_grams = EXCLUDED.carbs_grams,
+            fat_grams = EXCLUDED.fat_grams,
+            kcal = EXCLUDED.kcal;
+    </update>
+</mapper>
