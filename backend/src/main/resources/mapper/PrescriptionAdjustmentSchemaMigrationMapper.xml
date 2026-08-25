@@ -25,8 +25,8 @@
             status prescription_adjustment_status_enum NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             processed_at TIMESTAMP,
-            CONSTRAINT chk_adjustment_target_for_pending CHECK (status <> 'PENDING' OR target_prescription_id IS NOT NULL),
-            CONSTRAINT chk_adjustment_feedback_pair CHECK (first_feedback_id <> second_feedback_id)
+            CONSTRAINT chk_adjustment_target_for_pending CHECK (status &lt;&gt; 'PENDING' OR target_prescription_id IS NOT NULL),
+            CONSTRAINT chk_adjustment_feedback_pair CHECK (first_feedback_id &lt;&gt; second_feedback_id)
         );
         CREATE UNIQUE INDEX IF NOT EXISTS uq_adjustment_second_feedback ON prescription_adjustments(second_feedback_id);
         CREATE UNIQUE INDEX IF NOT EXISTS uq_pending_adjustment_target
