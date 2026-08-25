@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.PrescriptionAdjustmentSchemaMigrationMapper">
+    <update id="apply">
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'prescription_adjustment_status_enum') THEN
+                CREATE TYPE prescription_adjustment_status_enum AS ENUM ('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED');
+            END IF;
+        END $$;
+        CREATE TABLE IF NOT EXISTS prescription_adjustments (
+            id UUID PRIMARY KEY,
+            plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE RESTRICT,
+            source_workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE RESTRICT,
+            source_exercise_id VARCHAR(64) NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
+            first_feedback_id UUID NOT NULL REFERENCES exercise_feedbacks(id) ON DELETE RESTRICT,
+            second_feedback_id UUID NOT NULL REFERENCES exercise_feedbacks(id) ON DELETE RESTRICT,
+            target_workout_id UUID REFERENCES workouts(id) ON DELETE RESTRICT,
+            target_prescription_id UUID REFERENCES prescriptions(id) ON DELETE RESTRICT,
+            original_prescription JSONB,
+            suggested_prescription JSONB,
+            suggested_exercise_id VARCHAR(64) REFERENCES exercises(id) ON DELETE RESTRICT,
+            reason TEXT NOT NULL,
+            reason_en TEXT NOT NULL,
+            status prescription_adjustment_status_enum NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMP,
+            CONSTRAINT chk_adjustment_target_for_pending CHECK (status <> 'PENDING' OR target_prescription_id IS NOT NULL),
+            CONSTRAINT chk_adjustment_feedback_pair CHECK (first_feedback_id <> second_feedback_id)
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_adjustment_second_feedback ON prescription_adjustments(second_feedback_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_pending_adjustment_target
+            ON prescription_adjustments(target_prescription_id)
+            WHERE status = 'PENDING' AND target_prescription_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_adjustments_plan_status ON prescription_adjustments(plan_id, status, created_at DESC);
+    </update>
+</mapper>

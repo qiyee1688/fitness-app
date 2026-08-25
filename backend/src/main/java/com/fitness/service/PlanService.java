@@ -57,6 +57,7 @@ public class PlanService {
     private final WorkoutTemplateMapper templateMapper;
     private final WorkoutTemplateService workoutTemplateService;
     private final NutritionService nutritionService;
+    private final PrescriptionAdjustmentService prescriptionAdjustmentService;
 
     @Autowired
     public PlanService(
@@ -66,7 +67,8 @@ public class PlanService {
             PlanGenerator planGenerator,
             WorkoutTemplateMapper templateMapper,
             WorkoutTemplateService workoutTemplateService,
-            NutritionService nutritionService
+            NutritionService nutritionService,
+            PrescriptionAdjustmentService prescriptionAdjustmentService
     ) {
         this.userMapper = userMapper;
         this.exerciseMapper = exerciseMapper;
@@ -75,6 +77,7 @@ public class PlanService {
         this.templateMapper = templateMapper;
         this.workoutTemplateService = workoutTemplateService;
         this.nutritionService = nutritionService;
+        this.prescriptionAdjustmentService = prescriptionAdjustmentService;
     }
 
     public GeneratedPlanResponse generatePlan(GeneratePlanRequest request) {
@@ -268,6 +271,10 @@ public class PlanService {
         feedback.setFilterUntil(filterUntil);
         feedback.setCreatedAt(createdAt);
         planMapper.insertExerciseFeedback(feedback);
+
+        if (request.feedbackType() != FeedbackType.HURT) {
+            prescriptionAdjustmentService.createCandidateIfTriggered(plan, feedback, workout.getDayNumber());
+        }
 
         boolean substituted = false;
         boolean removedForSafety = false;

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.PrescriptionAdjustmentMapper">
+    <resultMap id="FeedbackResultMap" type="com.fitness.domain.ExerciseFeedback">
+        <id property="id" column="id"/><result property="workoutId" column="workout_id"/>
+        <result property="exerciseId" column="exercise_id"/><result property="feedbackType" column="feedback_type"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+    <resultMap id="PrescriptionResultMap" type="com.fitness.domain.Prescription">
+        <id property="id" column="id"/><result property="workoutId" column="workout_id"/>
+        <result property="exerciseId" column="exercise_id"/><result property="sets" column="sets"/>
+        <result property="reps" column="reps"/><result property="load" column="load"/>
+        <result property="loadType" column="load_type"/><result property="rpe" column="rpe"/>
+    </resultMap>
+    <select id="findRecentUnconsumedFeedbacks" resultMap="FeedbackResultMap">
+        SELECT ef.id, ef.workout_id, ef.exercise_id, ef.feedback_type, ef.created_at
+        FROM exercise_feedbacks ef JOIN workouts w ON w.id = ef.workout_id
+        WHERE w.plan_id = #{planId}::uuid AND ef.exercise_id = #{exerciseId}
+          AND NOT EXISTS (SELECT 1 FROM prescription_adjustments pa
+              WHERE ef.id = pa.first_feedback_id OR ef.id = pa.second_feedback_id)
+        ORDER BY ef.created_at DESC, ef.id DESC LIMIT 2
+    </select>
+    <select id="findNextUnstartedPrescription" resultMap="PrescriptionResultMap">
+        SELECT p.id, p.workout_id, p.exercise_id, p.sets, p.reps, p.load, p.load_type, p.rpe
+        FROM prescriptions p JOIN workouts w ON w.id = p.workout_id
+        WHERE w.plan_id = #{planId}::uuid AND p.exercise_id = #{exerciseId}
+          AND w.day_number &gt; #{afterDayNumber} AND w.status = 'READY'::workout_status_enum
+          AND w.started_at IS NULL AND w.completed_at IS NULL AND p.removed_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM prescription_adjustments pending
+              WHERE pending.target_prescription_id = p.id AND pending.status = 'PENDING')
+        ORDER BY w.day_number, p.sequence LIMIT 1
+    </select>
+    <select id="findAllowedHardFeedbackSubstitute" resultType="string">
+        SELECT es.to_exercise_id
+        FROM exercise_substitutes es
+        JOIN exercises candidate ON candidate.id = es.to_exercise_id AND candidate.active = TRUE
+        JOIN plans plan ON plan.id = #{planId}::uuid
+        WHERE es.from_exercise_id = #{exerciseId}
+          AND (candidate.equipment = 'body weight'
+               OR plan.profile_snapshot -&gt; 'availableEquipment' @&gt; to_jsonb(candidate.equipment))
+          AND NOT EXISTS (SELECT 1 FROM prescriptions current_p
+              WHERE current_p.workout_id = #{workoutId}::uuid
+                AND current_p.exercise_id = candidate.id AND current_p.removed_at IS NULL)
+        ORDER BY es.priority, candidate.id LIMIT 1
+    </select>
+    <insert id="insert" parameterType="com.fitness.domain.PrescriptionAdjustment">
+        INSERT INTO prescription_adjustments (id, plan_id, source_workout_id, source_exercise_id,
+          first_feedback_id, second_feedback_id, target_workout_id, target_prescription_id,
+          original_prescription, suggested_prescription, suggested_exercise_id, reason, reason_en, status, created_at, processed_at)
+        VALUES (#{id}::uuid, #{planId}::uuid, #{sourceWorkoutId}::uuid, #{sourceExerciseId},
+          #{firstFeedbackId}::uuid, #{secondFeedbackId}::uuid, #{targetWorkoutId}::uuid, #{targetPrescriptionId}::uuid,
+          #{originalPrescription,typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+          #{suggestedPrescription,typeHandler=com.fitness.config.JsonbTypeHandler}::jsonb,
+          #{suggestedExerciseId}, #{reason}, #{reasonEn}, #{status}::prescription_adjustment_status_enum, #{createdAt}, #{processedAt})
+        ON CONFLICT DO NOTHING
+    </insert>
+</mapper>

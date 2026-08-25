@@ -63,6 +63,7 @@ class PlanServiceTest {
     @Mock private WorkoutTemplateMapper templateMapper;
     @Mock private WorkoutTemplateService workoutTemplateService;
     @Mock private NutritionService nutritionService;
+    @Mock private PrescriptionAdjustmentService prescriptionAdjustmentService;
 
     private PlanService planService;
 
@@ -75,7 +76,8 @@ class PlanServiceTest {
                 new PlanGenerator(),
                 templateMapper,
                 workoutTemplateService,
-                nutritionService);
+                nutritionService,
+                prescriptionAdjustmentService);
     }
 
     @Test
@@ -401,6 +403,23 @@ class PlanServiceTest {
         assertThat(response.replacementExerciseId()).isEqualTo("replacement");
         assertThat(response.filterUntil()).isAfterOrEqualTo(LocalDate.now().plusWeeks(4));
         verify(planMapper).insertExerciseFeedback(any(ExerciseFeedback.class));
+        verify(prescriptionAdjustmentService, never()).createCandidateIfTriggered(any(), any(), any(Integer.class));
+    }
+
+    @Test
+    void nonHurtFeedbackDelegatesCandidateEvaluationAfterTheFeedbackIsPersisted() {
+        User user = user(); Plan active = activePlan(); Workout workout = workout(1); Prescription prescription = prescription(workout.getId());
+        when(userMapper.findUserByUsername("demo")).thenReturn(user);
+        when(planMapper.findActiveByUserId(user.getId())).thenReturn(active);
+        when(planMapper.findWorkoutByIdAndPlanId(workout.getId(), active.getId())).thenReturn(workout);
+        when(planMapper.findPrescriptionInWorkout(workout.getId(), "core")).thenReturn(prescription);
+        when(planMapper.findPrescriptionsByWorkoutId(workout.getId())).thenReturn(List.of());
+
+        planService.submitExerciseFeedback("demo", workout.getId(), "core",
+                new SubmitExerciseFeedbackRequest(FeedbackType.TOO_EASY, null));
+
+        verify(prescriptionAdjustmentService).createCandidateIfTriggered(
+                org.mockito.ArgumentMatchers.same(active), any(ExerciseFeedback.class), org.mockito.ArgumentMatchers.eq(1));
     }
 
     @Test
