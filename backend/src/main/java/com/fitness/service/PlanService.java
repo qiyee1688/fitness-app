@@ -102,10 +102,10 @@ public class PlanService {
                 : PlanStatus.ACTIVE;
         Plan activePlan = planMapper.findActiveByUserId(user.getId());
         if (initialStatus == PlanStatus.ACTIVE && activePlan != null) {
+            prescriptionAdjustmentService.expirePendingForPlan(activePlan.getId(), LocalDateTime.now());
             if (planMapper.supersedeActive(activePlan.getId(), activePlan.getVersion()) != 1) {
                 throw new BusinessException(ErrorCode.PLAN_CONFLICT);
             }
-            prescriptionAdjustmentService.expirePendingForPlan(activePlan.getId(), LocalDateTime.now());
         }
 
         Plan plan = planGenerator.generate(profile, candidates, startDate);
@@ -282,6 +282,8 @@ public class PlanService {
         boolean removedForSafety = false;
         String replacementExerciseId = null;
         if (request.feedbackType() == FeedbackType.HURT) {
+            prescriptionAdjustmentService.expirePendingForTargetPrescription(
+                    prescription.getId(), createdAt);
             Exercise substitute = planMapper.findSafeSubstitute(
                     user.getId(), workoutId, exerciseId, hurtBodyPart);
             int updated;
@@ -298,8 +300,6 @@ public class PlanService {
             if (updated != 1) {
                 throw new BusinessException(ErrorCode.FEEDBACK_CONFLICT);
             }
-            prescriptionAdjustmentService.expirePendingForTargetPrescription(
-                    prescription.getId(), createdAt);
         }
 
         LocalDate scheduledDate = plan.getStartDate().plusDays(workout.getDayNumber() - 1L);
@@ -357,6 +357,7 @@ public class PlanService {
             throw new BusinessException(ErrorCode.WORKOUT_TEMPLATE_NEEDS_REPAIR);
         }
 
+        prescriptionAdjustmentService.expirePendingForTargetWorkout(original.getId(), LocalDateTime.now());
         if (planMapper.bumpPlanVersion(
                 plan.getId(), user.getId(), plan.getStatus(), request.expectedPlanVersion()) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
@@ -370,7 +371,6 @@ public class PlanService {
         if (planMapper.markWorkoutReplaced(original.getId(), plan.getId()) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
         }
-        prescriptionAdjustmentService.expirePendingForTargetWorkout(original.getId(), LocalDateTime.now());
 
         Workout replacement = new Workout();
         replacement.setId(UUID.randomUUID().toString());
@@ -457,12 +457,12 @@ public class PlanService {
             PlanStatus newStatus,
             LocalDateTime changedAt
     ) {
+        if (newStatus != PlanStatus.ACTIVE) {
+            prescriptionAdjustmentService.expirePendingForPlan(plan.getId(), changedAt);
+        }
         if (planMapper.transitionStatus(
                 plan.getId(), expectedStatus, newStatus, plan.getVersion(), changedAt) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
-        }
-        if (newStatus != PlanStatus.ACTIVE) {
-            prescriptionAdjustmentService.expirePendingForPlan(plan.getId(), changedAt);
         }
     }
 
