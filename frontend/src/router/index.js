@@ -9,6 +9,8 @@ import OnDemandWorkout from '@/views/OnDemandWorkout.vue'
 import WorkoutTemplates from '@/views/WorkoutTemplates.vue'
 import KnowledgeArticleList from '@/views/KnowledgeArticleList.vue'
 import KnowledgeArticleDetail from '@/views/KnowledgeArticleDetail.vue'
+import FoodItemList from '@/views/FoodItemList.vue'
+import FoodItemDetail from '@/views/FoodItemDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,6 +30,17 @@ const router = createRouter({
       path: '/articles',
       name: 'knowledge-article-list',
       component: KnowledgeArticleList,
+    },
+    {
+      path: '/foods',
+      name: 'food-item-list',
+      component: FoodItemList,
+    },
+    {
+      path: '/foods/:id',
+      name: 'food-item-detail',
+      component: FoodItemDetail,
+      props: true,
     },
     {
       path: '/articles/:slug',

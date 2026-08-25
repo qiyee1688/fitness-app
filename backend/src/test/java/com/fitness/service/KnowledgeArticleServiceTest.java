@@ -3,6 +3,8 @@ package com.fitness.service;
 import com.fitness.domain.ArticleReference;
 import com.fitness.domain.Editor;
 import com.fitness.domain.Exercise;
+import com.fitness.domain.FoodCategory;
+import com.fitness.domain.FoodItem;
 import com.fitness.domain.KnowledgeArticle;
 import com.fitness.domain.KnowledgeArticleStatus;
 import com.fitness.exception.BusinessException;
@@ -33,12 +35,15 @@ class KnowledgeArticleServiceTest {
         when(articleMapper.findPublished(0, 20)).thenReturn(List.of(article));
         when(articleMapper.countPublished()).thenReturn(1);
         when(articleMapper.findPublishedReferences("article-id")).thenReturn(List.of(reference));
+        when(articleMapper.findPublishedFoodItems("article-id")).thenReturn(List.of(foodItem()));
 
         var response = service.listPublished(1, 20);
 
         assertThat(response.getTotal()).isEqualTo(1);
         assertThat(response.getItems().getFirst().references()).extracting("exerciseId")
                 .containsExactly("push-up");
+        assertThat(response.getItems().getFirst().foodItems()).extracting("id")
+                .containsExactly("egg-whole");
     }
 
     @Test
@@ -77,5 +82,21 @@ class KnowledgeArticleServiceTest {
         exercise.setTarget("pectorals");
         exercise.setEquipment("body weight");
         return exercise;
+    }
+
+    private FoodItem foodItem() {
+        FoodItem item = new FoodItem();
+        item.setId("egg-whole");
+        item.setName("鸡蛋");
+        item.setNameEn("Whole egg");
+        item.setCategory(FoodCategory.PROTEIN);
+        item.setServingDescription("1 个大鸡蛋");
+        item.setServingDescriptionEn("1 large egg");
+        item.setServingGrams(new java.math.BigDecimal("50"));
+        item.setProteinGrams(new java.math.BigDecimal("6.3"));
+        item.setCarbsGrams(new java.math.BigDecimal("0.4"));
+        item.setFatGrams(new java.math.BigDecimal("5.0"));
+        item.setKcal(new java.math.BigDecimal("72"));
+        return item;
     }
 }

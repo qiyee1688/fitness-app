@@ -1,6 +1,7 @@
 package com.fitness.mapper;
 
 import com.fitness.domain.ArticleReference;
+import com.fitness.domain.FoodItem;
 import com.fitness.domain.KnowledgeArticle;
 import com.fitness.dto.KnowledgeArticleSummary;
 import org.apache.ibatis.annotations.Mapper;
@@ -17,6 +18,8 @@ public interface KnowledgeArticleMapper {
     KnowledgeArticle findPublishedBySlug(@Param("slug") String slug);
 
     List<ArticleReference> findPublishedReferences(@Param("articleId") String articleId);
+
+    List<FoodItem> findPublishedFoodItems(@Param("articleId") String articleId);
 
     List<KnowledgeArticleSummary> findPublishedByExerciseId(@Param("exerciseId") String exerciseId);
 }

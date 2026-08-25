@@ -19,7 +19,8 @@ public record KnowledgeArticleResponse(
         LocalDateTime publishedAt,
         String editorName,
         String editorNameEn,
-        List<ExerciseReferenceResponse> references
+        List<ExerciseReferenceResponse> references,
+        List<FoodItemResponse> foodItems
 ) {
     public record ExerciseReferenceResponse(
             String exerciseId,

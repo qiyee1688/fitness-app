@@ -5,6 +5,7 @@ import com.fitness.domain.Exercise;
 import com.fitness.domain.KnowledgeArticle;
 import com.fitness.dto.KnowledgeArticleResponse;
 import com.fitness.dto.KnowledgeArticleSummary;
+import com.fitness.dto.FoodItemResponse;
 import com.fitness.dto.PageResponse;
 import com.fitness.dto.PlanDetailResponse;
 import com.fitness.exception.BusinessException;
@@ -44,6 +45,9 @@ public class KnowledgeArticleService {
 
     private KnowledgeArticleResponse toResponseWithReferences(KnowledgeArticle article) {
         List<ArticleReference> references = articleMapper.findPublishedReferences(article.getId());
+        List<FoodItemResponse> foodItems = articleMapper.findPublishedFoodItems(article.getId()).stream()
+                .map(FoodItemResponse::from)
+                .toList();
         return new KnowledgeArticleResponse(
                 article.getId(),
                 article.getSlug(),
@@ -58,7 +62,8 @@ public class KnowledgeArticleService {
                 article.getPublishedAt(),
                 article.getEditor() == null ? null : article.getEditor().getDisplayName(),
                 article.getEditor() == null ? null : article.getEditor().getDisplayNameEn(),
-                references.stream().map(this::toReferenceResponse).toList());
+                references.stream().map(this::toReferenceResponse).toList(),
+                foodItems);
     }
 
     private KnowledgeArticleResponse.ExerciseReferenceResponse toReferenceResponse(ArticleReference reference) {

@@ -76,9 +76,6 @@ public class FoodItemService {
     }
 
     private FoodItemResponse toResponse(FoodItem item) {
-        return new FoodItemResponse(
-                item.getId(), item.getName(), item.getNameEn(), item.getCategory(),
-                item.getServingDescription(), item.getServingDescriptionEn(), item.getServingGrams(),
-                item.getProteinGrams(), item.getCarbsGrams(), item.getFatGrams(), item.getKcal());
+        return FoodItemResponse.from(item);
     }
 }

@@ -30,6 +30,25 @@
           </router-link>
         </div>
       </section>
+
+      <section v-if="article.foodItems?.length" class="article-food-references">
+        <h2>{{ t('articleFoodReferences') }}</h2>
+        <div class="article-food-reference-grid">
+          <router-link
+            v-for="item in article.foodItems"
+            :key="item.id"
+            class="article-food-reference-card"
+            :to="{ name: 'food-item-detail', params: { id: item.id } }"
+          >
+            <div>
+              <p class="eyebrow">{{ t('articleFoodReference') }}</p>
+              <h3>{{ food_name(item) }}</h3>
+              <p>{{ food_serving(item) }}</p>
+            </div>
+            <span>{{ t('foodConvert') }}</span>
+          </router-link>
+        </div>
+      </section>
     </article>
   </section>
 </template>
@@ -59,6 +78,16 @@ function article_summary(value) {
 
 function article_body(value) {
   return language.value === 'zh' ? value.body || value.bodyEn : value.bodyEn || value.body
+}
+
+function food_name(item) {
+  return language.value === 'zh' ? item.name || item.nameEn : item.nameEn || item.name
+}
+
+function food_serving(item) {
+  return language.value === 'zh'
+    ? item.servingDescription || item.servingDescriptionEn
+    : item.servingDescriptionEn || item.servingDescription
 }
 
 function go_back() {

@@ -43,6 +43,20 @@
         </association>
     </resultMap>
 
+    <resultMap id="FoodItemResultMap" type="com.fitness.domain.FoodItem">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="nameEn" column="name_en"/>
+        <result property="category" column="category"/>
+        <result property="servingDescription" column="serving_description"/>
+        <result property="servingDescriptionEn" column="serving_description_en"/>
+        <result property="servingGrams" column="serving_grams"/>
+        <result property="proteinGrams" column="protein_grams"/>
+        <result property="carbsGrams" column="carbs_grams"/>
+        <result property="fatGrams" column="fat_grams"/>
+        <result property="kcal" column="kcal"/>
+    </resultMap>
+
     <sql id="publishedArticleColumns">
         ka.id AS article_id, ka.editor_id, ka.slug, ka.title, ka.title_en,
         ka.summary, ka.summary_en, ka.body, ka.body_en, ka.cover_image_url,
@@ -82,6 +96,17 @@
         JOIN exercises ex ON ex.id = ar.exercise_id AND ex.active = TRUE
         WHERE ar.article_id = #{articleId}::uuid AND ka.status = 'PUBLISHED'
         ORDER BY ar.display_order, ar.exercise_id
+    </select>
+
+    <select id="findPublishedFoodItems" resultMap="FoodItemResultMap">
+        SELECT fi.id, fi.name, fi.name_en, fi.category, fi.serving_description,
+               fi.serving_description_en, fi.serving_grams, fi.protein_grams,
+               fi.carbs_grams, fi.fat_grams, fi.kcal
+        FROM article_food_references afr
+        JOIN knowledge_articles ka ON ka.id = afr.article_id
+        JOIN food_items fi ON fi.id = afr.food_item_id
+        WHERE afr.article_id = #{articleId}::uuid AND ka.status = 'PUBLISHED'
+        ORDER BY afr.display_order, fi.id
     </select>
 
     <select id="findPublishedByExerciseId" resultType="com.fitness.dto.KnowledgeArticleSummary">

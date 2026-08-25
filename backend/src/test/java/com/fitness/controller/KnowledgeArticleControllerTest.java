@@ -1,6 +1,8 @@
 package com.fitness.controller;
 
 import com.fitness.domain.KnowledgeArticleStatus;
+import com.fitness.domain.FoodCategory;
+import com.fitness.dto.FoodItemResponse;
 import com.fitness.dto.KnowledgeArticleResponse;
 import com.fitness.dto.PageResponse;
 import com.fitness.service.KnowledgeArticleService;
@@ -64,7 +66,9 @@ class KnowledgeArticleControllerTest {
                 .andExpect(jsonPath("$.data.articleId").value("article-id"))
                 .andExpect(jsonPath("$.data.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.data.references[0].exerciseId").value("push-up"))
-                .andExpect(jsonPath("$.data.references[0].exercise.name").value("Push-Up"));
+                .andExpect(jsonPath("$.data.references[0].exercise.name").value("Push-Up"))
+                .andExpect(jsonPath("$.data.foodItems[0].id").value("egg-whole"))
+                .andExpect(jsonPath("$.data.foodItems[0].nameEn").value("Whole egg"));
 
         verify(articleService).getPublishedBySlug("training-basics");
     }
@@ -123,6 +127,11 @@ class KnowledgeArticleControllerTest {
                                 null,
                                 null,
                                 null,
-                                null))));
+                                null))),
+                List.of(new FoodItemResponse(
+                        "egg-whole", "鸡蛋", "Whole egg", FoodCategory.PROTEIN,
+                        "1 个大鸡蛋", "1 large egg", new java.math.BigDecimal("50"),
+                        new java.math.BigDecimal("6.3"), new java.math.BigDecimal("0.4"),
+                        new java.math.BigDecimal("5.0"), new java.math.BigDecimal("72"))));
     }
 }

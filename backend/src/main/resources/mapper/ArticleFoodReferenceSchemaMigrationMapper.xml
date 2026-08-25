@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fitness.mapper.ArticleFoodReferenceSchemaMigrationMapper">
+    <update id="apply">
+        CREATE TABLE IF NOT EXISTS article_food_references (
+            article_id UUID NOT NULL REFERENCES knowledge_articles(id) ON DELETE CASCADE,
+            food_item_id VARCHAR(80) NOT NULL REFERENCES food_items(id) ON DELETE RESTRICT,
+            display_order INT NOT NULL CHECK (display_order > 0),
+            PRIMARY KEY (article_id, food_item_id),
+            CONSTRAINT uq_article_food_reference_order UNIQUE (article_id, display_order)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_article_food_references_food_item_id
+            ON article_food_references(food_item_id);
+
+        INSERT INTO article_food_references (article_id, food_item_id, display_order)
+        VALUES
+            ('30000000-0000-0000-0000-000000000001', 'egg-whole', 1),
+            ('30000000-0000-0000-0000-000000000003', 'banana-medium', 1)
+        ON CONFLICT (article_id, food_item_id) DO UPDATE SET
+            display_order = EXCLUDED.display_order;
+    </update>
+</mapper>
