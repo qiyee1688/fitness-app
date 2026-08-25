@@ -10,7 +10,10 @@ import com.fitness.dto.ReplaceWorkoutWithTemplateRequest;
 import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
 import com.fitness.dto.SubmitExerciseFeedbackRequest;
+import com.fitness.dto.PrescriptionAdjustmentResponse;
+import com.fitness.dto.ResolvePrescriptionAdjustmentRequest;
 import com.fitness.service.PlanService;
+import com.fitness.service.PrescriptionAdjustmentService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @Validated
@@ -34,9 +38,41 @@ import java.time.LocalDate;
 public class PlanController {
 
     private final PlanService planService;
+    private final PrescriptionAdjustmentService prescriptionAdjustmentService;
 
-    public PlanController(PlanService planService) {
+    public PlanController(
+            PlanService planService,
+            PrescriptionAdjustmentService prescriptionAdjustmentService
+    ) {
         this.planService = planService;
+        this.prescriptionAdjustmentService = prescriptionAdjustmentService;
+    }
+
+    @GetMapping("/adjustments")
+    public ResponseEntity<ApiResponse<List<PrescriptionAdjustmentResponse>>> listAdjustments(
+            @RequestParam(defaultValue = "demo") @NotBlank String username
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(prescriptionAdjustmentService.list(username)));
+    }
+
+    @PostMapping("/adjustments/{id}/accept")
+    public ResponseEntity<ApiResponse<PrescriptionAdjustmentResponse>> acceptAdjustment(
+            @PathVariable @NotBlank String id,
+            @RequestParam(defaultValue = "demo") @NotBlank String username,
+            @Valid @RequestBody ResolvePrescriptionAdjustmentRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                prescriptionAdjustmentService.accept(username, id, request.expectedPlanVersion())));
+    }
+
+    @PostMapping("/adjustments/{id}/decline")
+    public ResponseEntity<ApiResponse<PrescriptionAdjustmentResponse>> declineAdjustment(
+            @PathVariable @NotBlank String id,
+            @RequestParam(defaultValue = "demo") @NotBlank String username,
+            @Valid @RequestBody ResolvePrescriptionAdjustmentRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                prescriptionAdjustmentService.decline(username, id, request.expectedPlanVersion())));
     }
 
     @PostMapping("/generate")

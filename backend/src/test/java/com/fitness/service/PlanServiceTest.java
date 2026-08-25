@@ -100,6 +100,8 @@ class PlanServiceTest {
         assertThat(response.workoutCount()).isEqualTo(16);
         assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 9, 29));
         verify(planMapper).supersedeActive(active.getId(), 2);
+        verify(prescriptionAdjustmentService).expirePendingForPlan(
+                org.mockito.ArgumentMatchers.eq(active.getId()), any(LocalDateTime.class));
         verify(planMapper).insertPlan(any(Plan.class));
         verify(planMapper, times(16)).insertWorkout(any());
         verify(planMapper, times(80)).insertPrescription(any());
@@ -144,6 +146,8 @@ class PlanServiceTest {
 
         assertThat(response.currentStatus()).isEqualTo(PlanStatus.PAUSED);
         assertThat(response.changed()).isTrue();
+        verify(prescriptionAdjustmentService).expirePendingForPlan(
+                active.getId(), LocalDate.of(2026, 8, 15).atStartOfDay());
     }
 
     @Test
@@ -164,6 +168,8 @@ class PlanServiceTest {
                 "demo", LocalDate.of(2026, 8, 15));
 
         assertThat(response.currentStatus()).isEqualTo(PlanStatus.CANCELLED);
+        verify(prescriptionAdjustmentService).expirePendingForPlan(
+                paused.getId(), LocalDate.of(2026, 8, 15).atStartOfDay());
     }
 
     @Test
@@ -403,6 +409,8 @@ class PlanServiceTest {
         assertThat(response.replacementExerciseId()).isEqualTo("replacement");
         assertThat(response.filterUntil()).isAfterOrEqualTo(LocalDate.now().plusWeeks(4));
         verify(planMapper).insertExerciseFeedback(any(ExerciseFeedback.class));
+        verify(prescriptionAdjustmentService).expirePendingForTargetPrescription(
+                org.mockito.ArgumentMatchers.eq(prescription.getId()), any(LocalDateTime.class));
         verify(prescriptionAdjustmentService, never()).createCandidateIfTriggered(any(), any(), any(Integer.class));
     }
 
@@ -445,6 +453,8 @@ class PlanServiceTest {
 
         assertThat(response.substituted()).isFalse();
         assertThat(response.removedForSafety()).isTrue();
+        verify(prescriptionAdjustmentService).expirePendingForTargetPrescription(
+                org.mockito.ArgumentMatchers.eq(prescription.getId()), any(LocalDateTime.class));
     }
 
     @Test
@@ -486,6 +496,8 @@ class PlanServiceTest {
         assertThat(response.workout().nutritionTips()).hasSize(1);
         verify(planMapper).bumpPlanVersion(active.getId(), user.getId(), PlanStatus.ACTIVE, 7);
         verify(planMapper).markWorkoutReplaced(original.getId(), active.getId());
+        verify(prescriptionAdjustmentService).expirePendingForTargetWorkout(
+                org.mockito.ArgumentMatchers.eq(original.getId()), any(LocalDateTime.class));
         verify(nutritionService).generateForWorkout(any(Workout.class), org.mockito.ArgumentMatchers.same(profile));
         verify(planMapper).insertWorkout(org.mockito.ArgumentMatchers.argThat(workout ->
                 workout.getSource() == WorkoutSource.TEMPLATE_REPLACEMENT

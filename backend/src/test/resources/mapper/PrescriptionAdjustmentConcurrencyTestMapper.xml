@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.PrescriptionAdjustmentConcurrencyTestMapper">
+    <update id="dropAdjustments">DROP TABLE IF EXISTS prescription_adjustments</update>
+    <update id="dropPlans">DROP TABLE IF EXISTS plans</update>
+    <update id="dropAdjustmentStatusType">DROP TYPE IF EXISTS prescription_adjustment_status_enum</update>
+    <update id="dropPlanStatusType">DROP TYPE IF EXISTS plan_status_enum</update>
+    <update id="createPlanStatusType">CREATE TYPE plan_status_enum AS ENUM ('ACTIVE', 'SUPERSEDED')</update>
+    <update id="createAdjustmentStatusType">CREATE TYPE prescription_adjustment_status_enum AS ENUM ('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED')</update>
+    <update id="createPlans">
+        CREATE TABLE plans (
+            id UUID PRIMARY KEY,
+            user_id UUID NOT NULL,
+            status plan_status_enum NOT NULL,
+            version INT NOT NULL
+        )
+    </update>
+    <update id="createAdjustments">
+        CREATE TABLE prescription_adjustments (
+            id UUID PRIMARY KEY,
+            plan_id UUID NOT NULL,
+            source_workout_id UUID,
+            source_exercise_id TEXT,
+            first_feedback_id UUID,
+            second_feedback_id UUID,
+            target_workout_id UUID,
+            target_prescription_id UUID,
+            original_prescription JSONB,
+            suggested_prescription JSONB,
+            suggested_exercise_id TEXT,
+            reason TEXT,
+            reason_en TEXT,
+            status prescription_adjustment_status_enum NOT NULL,
+            created_at TIMESTAMP NOT NULL,
+            processed_at TIMESTAMP
+        )
+    </update>
+    <insert id="insertPlan">
+        INSERT INTO plans (id, user_id, status, version)
+        VALUES (#{planId}::uuid, #{userId}::uuid, 'ACTIVE'::plan_status_enum, 3)
+    </insert>
+    <insert id="insertPendingAdjustment">
+        INSERT INTO prescription_adjustments (id, plan_id, source_exercise_id, status, created_at)
+        VALUES (#{adjustmentId}::uuid, #{planId}::uuid, 'core',
+                'PENDING'::prescription_adjustment_status_enum, CURRENT_TIMESTAMP)
+    </insert>
+</mapper>

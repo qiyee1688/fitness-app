@@ -2,11 +2,19 @@ package com.fitness.service;
 
 import com.fitness.domain.ExerciseFeedback;
 import com.fitness.domain.Plan;
+import com.fitness.domain.PlanStatus;
 import com.fitness.domain.Prescription;
 import com.fitness.domain.PrescriptionAdjustment;
 import com.fitness.domain.PrescriptionAdjustmentStatus;
+import com.fitness.domain.User;
+import com.fitness.dto.PrescriptionAdjustmentResponse;
+import com.fitness.exception.BusinessException;
+import com.fitness.exception.ErrorCode;
+import com.fitness.mapper.PlanMapper;
 import com.fitness.mapper.PrescriptionAdjustmentMapper;
+import com.fitness.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,9 +29,103 @@ public class PrescriptionAdjustmentService {
     private static final BigDecimal RPE_STEP = new BigDecimal("0.5");
 
     private final PrescriptionAdjustmentMapper adjustmentMapper;
+    private final UserMapper userMapper;
+    private final PlanMapper planMapper;
 
-    public PrescriptionAdjustmentService(PrescriptionAdjustmentMapper adjustmentMapper) {
+    public PrescriptionAdjustmentService(
+            PrescriptionAdjustmentMapper adjustmentMapper,
+            UserMapper userMapper,
+            PlanMapper planMapper
+    ) {
         this.adjustmentMapper = adjustmentMapper;
+        this.userMapper = userMapper;
+        this.planMapper = planMapper;
+    }
+
+    public List<PrescriptionAdjustmentResponse> list(String username) {
+        return adjustmentMapper.findOwnedByActivePlan(userId(username)).stream().map(this::response).toList();
+    }
+
+    @Transactional
+    public PrescriptionAdjustmentResponse accept(String username, String id, int expectedPlanVersion) {
+        return resolve(username, id, expectedPlanVersion, true);
+    }
+
+    @Transactional
+    public PrescriptionAdjustmentResponse decline(String username, String id, int expectedPlanVersion) {
+        return resolve(username, id, expectedPlanVersion, false);
+    }
+
+    private PrescriptionAdjustmentResponse resolve(String username, String id, int expectedPlanVersion, boolean accept) {
+        String userId = userId(username);
+        PrescriptionAdjustment adjustment = adjustmentMapper.findOwnedById(id, userId);
+        if (adjustment == null) {
+            throw new BusinessException(ErrorCode.PRESCRIPTION_ADJUSTMENT_NOT_FOUND);
+        }
+        if (adjustment.getStatus() != PrescriptionAdjustmentStatus.PENDING) {
+            return response(adjustment);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (!accept) {
+            adjustmentMapper.resolvePending(id, PrescriptionAdjustmentStatus.DECLINED, now);
+            adjustment.setStatus(PrescriptionAdjustmentStatus.DECLINED);
+            adjustment.setProcessedAt(now);
+            return response(adjustment);
+        }
+        if (adjustmentMapper.applySuggestedPrescription(adjustment, expectedPlanVersion) != 1) {
+            return expire(adjustment, now);
+        }
+        if (planMapper.bumpPlanVersion(
+                adjustment.getPlanId(), userId, PlanStatus.ACTIVE, expectedPlanVersion) != 1) {
+            throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        }
+        adjustmentMapper.resolvePending(id, PrescriptionAdjustmentStatus.ACCEPTED, now);
+        adjustment.setStatus(PrescriptionAdjustmentStatus.ACCEPTED);
+        adjustment.setProcessedAt(now);
+        return response(adjustment);
+    }
+
+    private PrescriptionAdjustmentResponse expire(PrescriptionAdjustment adjustment, LocalDateTime now) {
+        adjustmentMapper.resolvePending(adjustment.getId(), PrescriptionAdjustmentStatus.EXPIRED, now);
+        adjustment.setStatus(PrescriptionAdjustmentStatus.EXPIRED);
+        adjustment.setProcessedAt(now);
+        return response(adjustment);
+    }
+
+    public void expirePendingForPlan(String planId, LocalDateTime processedAt) {
+        System.out.printf("Confirm expiring pending prescription adjustments planId=%s%n", planId);
+        adjustmentMapper.expirePendingForPlan(planId, processedAt);
+    }
+
+    public void expirePendingForTargetWorkout(String targetWorkoutId, LocalDateTime processedAt) {
+        System.out.printf(
+                "Confirm expiring pending prescription adjustments targetWorkoutId=%s%n",
+                targetWorkoutId);
+        adjustmentMapper.expirePendingForTargetWorkout(targetWorkoutId, processedAt);
+    }
+
+    public void expirePendingForTargetPrescription(String targetPrescriptionId, LocalDateTime processedAt) {
+        System.out.printf(
+                "Confirm expiring pending prescription adjustments targetPrescriptionId=%s%n",
+                targetPrescriptionId);
+        adjustmentMapper.expirePendingForTargetPrescription(targetPrescriptionId, processedAt);
+    }
+
+    private String userId(String username) {
+        User user = userMapper.findUserByUsername(username);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        return user.getId();
+    }
+
+    private PrescriptionAdjustmentResponse response(PrescriptionAdjustment value) {
+        return new PrescriptionAdjustmentResponse(
+                value.getId(), value.getPlanId(), value.getSourceWorkoutId(), value.getSourceExerciseId(),
+                value.getFirstFeedbackId(), value.getSecondFeedbackId(), value.getTargetWorkoutId(),
+                value.getTargetPrescriptionId(), value.getOriginalPrescription(), value.getSuggestedPrescription(),
+                value.getSuggestedExerciseId(), value.getReason(), value.getReasonEn(), value.getStatus(),
+                value.getCreatedAt(), value.getProcessedAt());
     }
 
     public void createCandidateIfTriggered(Plan plan, ExerciseFeedback newestFeedback, int sourceDayNumber) {

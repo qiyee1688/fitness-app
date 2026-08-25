@@ -42,4 +42,32 @@ class PrescriptionAdjustmentMapperContractTest {
         assertThat(targetSql.getParameterMappings()).extracting("property")
                 .containsExactly("planId", "exerciseId", "afterDayNumber");
     }
+
+    @Test
+    void resolutionQueriesLockTheAdjustmentAndGuardTheOnlyMutableTarget() {
+        BoundSql ownedSql = configuration.getMappedStatement(
+                "com.fitness.mapper.PrescriptionAdjustmentMapper.findOwnedById")
+                .getBoundSql(Map.of("id", "33333333-3333-3333-3333-333333333333", "userId", "user-id"));
+        String mapperXml = readMapperXml();
+
+        assertThat(ownedSql.getSql()).contains("p.status = 'ACTIVE'::plan_status_enum")
+                .contains("FOR UPDATE OF pa");
+        assertThat(mapperXml).contains("AND target.removed_at IS NULL")
+                .contains("id=\"expirePendingForTargetWorkout\"")
+                .contains("WHERE target_workout_id = #{targetWorkoutId}::uuid");
+    }
+
+    private String readMapperXml() {
+        try (Reader reader = Resources.getResourceAsReader("mapper/PrescriptionAdjustmentMapper.xml")) {
+            StringBuilder builder = new StringBuilder();
+            char[] buffer = new char[1024];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                builder.append(buffer, 0, read);
+            }
+            return builder.toString();
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
 }

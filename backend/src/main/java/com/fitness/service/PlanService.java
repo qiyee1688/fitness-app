@@ -101,9 +101,11 @@ public class PlanService {
                 ? PlanStatus.SCHEDULED
                 : PlanStatus.ACTIVE;
         Plan activePlan = planMapper.findActiveByUserId(user.getId());
-        if (initialStatus == PlanStatus.ACTIVE && activePlan != null
-                && planMapper.supersedeActive(activePlan.getId(), activePlan.getVersion()) != 1) {
-            throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        if (initialStatus == PlanStatus.ACTIVE && activePlan != null) {
+            if (planMapper.supersedeActive(activePlan.getId(), activePlan.getVersion()) != 1) {
+                throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+            }
+            prescriptionAdjustmentService.expirePendingForPlan(activePlan.getId(), LocalDateTime.now());
         }
 
         Plan plan = planGenerator.generate(profile, candidates, startDate);
@@ -296,6 +298,8 @@ public class PlanService {
             if (updated != 1) {
                 throw new BusinessException(ErrorCode.FEEDBACK_CONFLICT);
             }
+            prescriptionAdjustmentService.expirePendingForTargetPrescription(
+                    prescription.getId(), createdAt);
         }
 
         LocalDate scheduledDate = plan.getStartDate().plusDays(workout.getDayNumber() - 1L);
@@ -366,6 +370,7 @@ public class PlanService {
         if (planMapper.markWorkoutReplaced(original.getId(), plan.getId()) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
         }
+        prescriptionAdjustmentService.expirePendingForTargetWorkout(original.getId(), LocalDateTime.now());
 
         Workout replacement = new Workout();
         replacement.setId(UUID.randomUUID().toString());
@@ -455,6 +460,9 @@ public class PlanService {
         if (planMapper.transitionStatus(
                 plan.getId(), expectedStatus, newStatus, plan.getVersion(), changedAt) != 1) {
             throw new BusinessException(ErrorCode.PLAN_CONFLICT);
+        }
+        if (newStatus != PlanStatus.ACTIVE) {
+            prescriptionAdjustmentService.expirePendingForPlan(plan.getId(), changedAt);
         }
     }
 

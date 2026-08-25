@@ -9,7 +9,12 @@ import com.fitness.dto.PlanDetailResponse;
 import com.fitness.dto.PlanLifecycleResponse;
 import com.fitness.dto.ReplaceWorkoutWithTemplateResponse;
 import com.fitness.dto.TodayWorkoutResponse;
+import com.fitness.dto.PrescriptionAdjustmentResponse;
+import com.fitness.domain.PrescriptionAdjustmentStatus;
+import com.fitness.exception.BusinessException;
+import com.fitness.exception.ErrorCode;
 import com.fitness.service.PlanService;
+import com.fitness.service.PrescriptionAdjustmentService;
 import org.apache.ibatis.annotations.Mapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +44,7 @@ class PlanControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private PlanService planService;
+    @MockitoBean private PrescriptionAdjustmentService prescriptionAdjustmentService;
 
     @Test
     void generateReturnsUnifiedResponse() throws Exception {
@@ -164,11 +170,65 @@ class PlanControllerTest {
     }
 
     @Test
+    void listsPrescriptionAdjustmentsWithTheUnifiedResponse() throws Exception {
+        when(prescriptionAdjustmentService.list("demo")).thenReturn(List.of(adjustmentResponse()));
+
+        mockMvc.perform(get("/plans/adjustments").param("username", "demo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].adjustmentId").value("adjustment-id"))
+                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+    }
+
+    @Test
+    void acceptsPrescriptionAdjustmentWithTheExpectedPlanVersion() throws Exception {
+        when(prescriptionAdjustmentService.accept("demo", "adjustment-id", 3))
+                .thenReturn(adjustmentResponse());
+
+        mockMvc.perform(post("/plans/adjustments/adjustment-id/accept")
+                        .param("username", "demo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedPlanVersion\":3}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.adjustmentId").value("adjustment-id"));
+    }
+
+    @Test
+    void declineRejectsAnInvalidExpectedPlanVersion() throws Exception {
+        mockMvc.perform(post("/plans/adjustments/adjustment-id/decline")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedPlanVersion\":-1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void returnsNotFoundForAnAdjustmentOutsideTheCurrentUsersScope() throws Exception {
+        when(prescriptionAdjustmentService.accept("demo", "missing", 3))
+                .thenThrow(new BusinessException(ErrorCode.PRESCRIPTION_ADJUSTMENT_NOT_FOUND));
+
+        mockMvc.perform(post("/plans/adjustments/missing/accept")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedPlanVersion\":3}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40413));
+    }
+
+    @Test
     void generateRejectsBlankUsername() throws Exception {
         mockMvc.perform(post("/plans/generate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\" \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
+    }
+
+    private PrescriptionAdjustmentResponse adjustmentResponse() {
+        return new PrescriptionAdjustmentResponse(
+                "adjustment-id", "plan-id", "source-workout-id", "core", "first-feedback-id",
+                "second-feedback-id", "target-workout-id", "target-prescription-id",
+                Map.of("rpe", 7.0), Map.of("rpe", 7.5), null, "建议提高 RPE", "Increase RPE",
+                PrescriptionAdjustmentStatus.PENDING, LocalDateTime.of(2026, 8, 25, 10, 0), null);
     }
 }
